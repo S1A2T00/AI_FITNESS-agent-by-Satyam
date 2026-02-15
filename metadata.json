@@ -1,0 +1,8 @@
+
+{
+  "name": "Vitalis AI - Holistic Health & Fitness Agent",
+  "description": "A comprehensive AI-driven health companion that combines body analysis, medical report parsing, and medication management into a single intelligent platform.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
