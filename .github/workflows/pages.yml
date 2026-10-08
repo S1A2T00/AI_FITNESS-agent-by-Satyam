@@ -35,7 +35,10 @@ jobs:
       - name: Build Vite application
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: npm run build
+        run: |
+          printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" > .env.production
+          npm run build
+          rm .env.production
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
