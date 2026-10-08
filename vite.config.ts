@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      base: process.env.GITHUB_ACTIONS === 'true'
+        ? '/AI_FITNESS-agent-by-Satyam/'
+        : '/',
       server: {
         port: 3000,
         host: '0.0.0.0',
