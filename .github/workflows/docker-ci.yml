@@ -1,22 +1,19 @@
 name: Docker CI/CD
 
 on:
-  push:
-    branches:
-      - master
-      - main
+  pull_request:
+    branches: [master, main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/ai-fitness-agent:latest
+  LOCAL_IMAGE: ai-fitness-agent:${{ github.sha }}
 
 jobs:
   build-scan-push:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,33 +21,70 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Run existing lint and test scripts if available
+        run: |
+          npm run lint --if-present
+          npm run test --if-present
 
       - name: Verify application build
+        env:
+          VITE_BASE_PATH: /
         run: npm run build
 
       - name: Build Docker image
-        run: docker build --tag "$IMAGE_NAME" .
+        run: docker build --tag "$LOCAL_IMAGE" .
+
+      - name: Check backend container
+        run: |
+          set -euo pipefail
+          docker run -d --name fitness-smoke \
+            -e GEMINI_API_KEY=ci-placeholder-not-a-real-key \
+            -p 127.0.0.1:8080:3001 "$LOCAL_IMAGE"
+          trap 'docker logs fitness-smoke; docker rm -f fitness-smoke' EXIT
+          curl --fail --retry 10 --retry-connrefused --retry-delay 1 \
+            http://127.0.0.1:8080/api/health
+          curl --fail http://127.0.0.1:8080/ \
+            -o /tmp/fitness-index.html
+          grep -q 'id="root"' /tmp/fitness-index.html
 
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.IMAGE_NAME }}
+          image-ref: ${{ env.LOCAL_IMAGE }}
           format: table
           exit-code: 1
           ignore-unfixed: true
           vuln-type: os,library
           severity: HIGH,CRITICAL
 
+      - name: Check publishing credentials
+        if: github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          test -n "$DOCKERHUB_USERNAME" || { echo "Missing DOCKERHUB_USERNAME secret"; exit 1; }
+          test -n "$DOCKERHUB_TOKEN" || { echo "Missing DOCKERHUB_TOKEN secret"; exit 1; }
+
       - name: Log in to Docker Hub
+        if: github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Push Docker image
-        run: docker push "$IMAGE_NAME"
+      - name: Push versioned and latest images
+        if: github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+        env:
+          IMAGE_REPOSITORY: ${{ secrets.DOCKERHUB_USERNAME }}/ai-fitness-agent
+        run: |
+          docker tag "$LOCAL_IMAGE" "$IMAGE_REPOSITORY:${{ github.sha }}"
+          docker tag "$LOCAL_IMAGE" "$IMAGE_REPOSITORY:latest"
+          docker push "$IMAGE_REPOSITORY:${{ github.sha }}"
+          docker push "$IMAGE_REPOSITORY:latest"

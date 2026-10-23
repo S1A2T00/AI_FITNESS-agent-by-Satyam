@@ -1,20 +1,31 @@
-FROM node:18-alpine AS build
+FROM node:24-alpine AS build
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
 RUN npm run build
 
-FROM nginx:alpine AS production
 
-RUN apk upgrade --no-cache
+FROM node:24-alpine AS production
 
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-EXPOSE 80
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3001
 
-CMD ["nginx", "-g", "daemon off;"]
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/server ./server
+COPY --from=build /app/constants.ts ./constants.ts
+
+USER node
+
+EXPOSE 3001
+
+CMD ["node", "server/index.mjs"]
