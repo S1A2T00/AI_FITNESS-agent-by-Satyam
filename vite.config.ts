@@ -1,27 +1,27 @@
-import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
+import path from "node:path";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
-export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
-    const geminiApiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-    return {
-      base: process.env.GITHUB_ACTIONS === 'true'
-        ? '/AI_FITNESS-agent-by-Satyam/'
-        : '/',
-      server: {
-        port: 3000,
-        host: '0.0.0.0',
+export default defineConfig({
+  base: "/",
+
+  plugins: [react()],
+
+  server: {
+    host: "127.0.0.1",
+    port: 3000,
+    strictPort: true,
+
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:3001",
       },
-      plugins: [react()],
-      define: {
-        'process.env.API_KEY': JSON.stringify(geminiApiKey),
-        'process.env.GEMINI_API_KEY': JSON.stringify(geminiApiKey)
-      },
-      resolve: {
-        alias: {
-          '@': path.resolve(__dirname, '.'),
-        }
-      }
-    };
+    },
+  },
+
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "."),
+    },
+  },
 });

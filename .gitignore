@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files must stay local; commit placeholders only.
+.env
+.env.*
+!.env.example
