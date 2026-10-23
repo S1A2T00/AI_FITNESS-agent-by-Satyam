@@ -18,7 +18,10 @@ ENV HOST=0.0.0.0
 ENV PORT=3001
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev \
+    && npm cache clean --force \
+    && rm -rf /usr/local/lib/node_modules/npm \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
