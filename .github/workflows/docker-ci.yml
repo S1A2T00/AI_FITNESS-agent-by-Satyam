@@ -47,7 +47,7 @@ jobs:
             -e GEMINI_API_KEY=ci-placeholder-not-a-real-key \
             -p 127.0.0.1:8080:3001 "$LOCAL_IMAGE"
           trap 'docker logs fitness-smoke; docker rm -f fitness-smoke' EXIT
-          curl --fail --retry 10 --retry-connrefused --retry-delay 1 \
+          curl --fail --retry 10 --retry-all-errors --retry-connrefused --retry-delay 1 \
             http://127.0.0.1:8080/api/health
           curl --fail http://127.0.0.1:8080/ \
             -o /tmp/fitness-index.html
