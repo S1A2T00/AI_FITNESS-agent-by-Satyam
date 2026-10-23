@@ -12,7 +12,8 @@ env:
   LOCAL_IMAGE: ai-fitness-agent:${{ github.sha }}
 
 jobs:
-  build-scan-push:
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -53,6 +54,32 @@ jobs:
             -o /tmp/fitness-index.html
           grep -q 'id="root"' /tmp/fitness-index.html
 
+      - name: Save Docker image
+        run: docker save --output /tmp/fitness-image.tar "$LOCAL_IMAGE"
+
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: fitness-image
+          path: /tmp/fitness-image.tar
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+
+  scan:
+    name: Scan
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: fitness-image
+          path: /tmp/fitness-image
+
+      - name: Load Docker image
+        run: docker load --input /tmp/fitness-image/fitness-image.tar
+
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -63,8 +90,22 @@ jobs:
           vuln-type: os,library
           severity: HIGH,CRITICAL
 
+  push:
+    name: Push
+    needs: scan
+    if: github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: fitness-image
+          path: /tmp/fitness-image
+
+      - name: Load Docker image
+        run: docker load --input /tmp/fitness-image/fitness-image.tar
+
       - name: Check publishing credentials
-        if: github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -73,17 +114,16 @@ jobs:
           test -n "$DOCKERHUB_TOKEN" || { echo "Missing DOCKERHUB_TOKEN secret"; exit 1; }
 
       - name: Log in to Docker Hub
-        if: github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Push versioned and latest images
-        if: github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
         env:
           IMAGE_REPOSITORY: ${{ secrets.DOCKERHUB_USERNAME }}/ai-fitness-agent
         run: |
+          set -euo pipefail
           docker tag "$LOCAL_IMAGE" "$IMAGE_REPOSITORY:${{ github.sha }}"
           docker tag "$LOCAL_IMAGE" "$IMAGE_REPOSITORY:latest"
           docker push "$IMAGE_REPOSITORY:${{ github.sha }}"
