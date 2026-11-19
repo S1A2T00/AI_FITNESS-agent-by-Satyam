@@ -2,6 +2,17 @@
 
 AI health & fitness assistant: React + Node, Firebase login, PostgreSQL, Gemini.
 
+## Live
+
+| | URL |
+|---|---|
+| **App** | https://vitalis-psi-lac.vercel.app |
+| API | https://vitalis-api-i3k9.onrender.com |
+| API health | https://vitalis-api-i3k9.onrender.com/api/health |
+
+Frontend on Vercel, API on Render, database on Neon. The API sleeps when idle on
+Render's free plan, so the first request can take about a minute.
+
 ## Run it
 
 ```bash
