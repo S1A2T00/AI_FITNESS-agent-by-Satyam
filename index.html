@@ -1,32 +1,140 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#060A12">
   <title>Vitalis AI</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: { 950: '#060A12', 900: '#0A101C', 850: '#0E1626', 800: '#131D30', 700: '#1C2840', 600: '#2A3A57' },
+            vital: { DEFAULT: '#4FF0B4', 300: '#8AF7CF', 500: '#4FF0B4', 600: '#22D497', 900: '#0B3B2C' },
+            plasma: { DEFAULT: '#8B7CFF', 300: '#B8AEFF', 500: '#8B7CFF', 900: '#221C4D' },
+            amberx: '#FFB547',
+            coral: '#FF5C7A',
+            mist: { 100: '#E8EEF8', 300: '#AEBBD0', 500: '#7C8AA3', 700: '#4E5B72' },
+          },
+          fontFamily: {
+            display: ['"Bricolage Grotesque"', 'system-ui', 'sans-serif'],
+            sans: ['"Instrument Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px); }
-  </style>
-<script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4"
-  }
-}
-</script>
+    :root { color-scheme: dark; }
+    html, body { background: #060A12; }
+    body {
+      font-family: 'Instrument Sans', system-ui, sans-serif;
+      color: #E8EEF8;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4, .font-display { font-family: 'Bricolage Grotesque', system-ui, sans-serif; letter-spacing: -0.02em; }
 
+    /* Ambient backdrop: soft aurora + faint lab grid + film grain */
+    .backdrop {
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(60rem 40rem at 85% -10%, rgba(139,124,255,0.16), transparent 60%),
+        radial-gradient(50rem 35rem at -10% 110%, rgba(79,240,180,0.10), transparent 60%),
+        #060A12;
+    }
+    .backdrop::before {
+      content: ""; position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(174,187,208,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(174,187,208,0.045) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 75%);
+    }
+    .backdrop::after {
+      content: ""; position: absolute; inset: 0; opacity: .06; mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    }
+
+    /* Surfaces */
+    .panel {
+      background: linear-gradient(180deg, rgba(19,29,48,0.72), rgba(10,16,28,0.72));
+      border: 1px solid rgba(174,187,208,0.10);
+      border-radius: 1.5rem;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 50px -30px rgba(0,0,0,0.8);
+      backdrop-filter: blur(14px);
+    }
+    .panel-hover { transition: border-color .25s, transform .25s, box-shadow .25s; }
+    .panel-hover:hover { border-color: rgba(79,240,180,0.28); box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 24px 60px -28px rgba(79,240,180,0.25); }
+    .glass { background: rgba(10,16,28,0.65); backdrop-filter: blur(16px); }
+
+    .eyebrow {
+      font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: .16em;
+      text-transform: uppercase; color: #7C8AA3;
+    }
+    .glow-text { text-shadow: 0 0 28px rgba(79,240,180,0.45); }
+
+    /* Buttons */
+    .btn-vital {
+      display: inline-flex; align-items: center; justify-content: center; gap: .55rem;
+      background: linear-gradient(180deg, #6FF5C3, #22D497); color: #04140E;
+      font-weight: 700; border-radius: 1rem; padding: .8rem 1.4rem;
+      box-shadow: 0 0 0 1px rgba(79,240,180,0.5), 0 10px 30px -10px rgba(79,240,180,0.6);
+      transition: transform .15s, box-shadow .2s, opacity .2s;
+    }
+    .btn-vital:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px rgba(79,240,180,0.7), 0 14px 36px -10px rgba(79,240,180,0.75); }
+    .btn-vital:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+    .btn-ghost {
+      display: inline-flex; align-items: center; justify-content: center; gap: .55rem;
+      border: 1px solid rgba(174,187,208,0.18); color: #E8EEF8; border-radius: 1rem;
+      padding: .75rem 1.2rem; font-weight: 600; transition: background .2s, border-color .2s;
+    }
+    .btn-ghost:hover { background: rgba(174,187,208,0.07); border-color: rgba(174,187,208,0.3); }
+
+    .field {
+      width: 100%; background: rgba(6,10,18,0.6); border: 1px solid rgba(174,187,208,0.14);
+      border-radius: .9rem; padding: .85rem 1rem; color: #E8EEF8; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .field::placeholder { color: #4E5B72; }
+    .field:focus { border-color: rgba(79,240,180,0.55); box-shadow: 0 0 0 4px rgba(79,240,180,0.12); }
+
+    /* Status dots */
+    .dot { width: .5rem; height: .5rem; border-radius: 9999px; display: inline-block; }
+    .dot-normal { background: #4FF0B4; box-shadow: 0 0 10px #4FF0B4; }
+    .dot-warning { background: #FFB547; box-shadow: 0 0 10px #FFB547; }
+    .dot-critical { background: #FF5C7A; box-shadow: 0 0 10px #FF5C7A; }
+    .dot-neutral { background: #7C8AA3; }
+
+    /* Entrance motion */
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    .rise { animation: rise .7s cubic-bezier(.2,.7,.2,1) both; }
+    .rise-1 { animation-delay: .06s; } .rise-2 { animation-delay: .12s; } .rise-3 { animation-delay: .18s; } .rise-4 { animation-delay: .24s; }
+    @keyframes scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
+    .scanline::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(180deg, transparent, rgba(79,240,180,0.35) 50%, transparent);
+      height: 40%; animation: scan 1.6s linear infinite;
+    }
+
+    ::selection { background: rgba(79,240,180,0.3); }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: #1C2840; border-radius: 10px; border: 2px solid #060A12; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body>
+  <div class="backdrop" aria-hidden="true"></div>
   <div id="root"></div>
-<script type="module" src="/index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
 </body>
 </html>

@@ -1,163 +1,177 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { AnalysisResult } from '../types';
+import { AnalysisResult, AnalysisType } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { TiltCard, VitalOrb } from '../components/Three3D';
 
-const StatCard: React.FC<{ label: string; value: string; icon: string; color: string }> = ({ label, value, icon, color }) => (
-  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-    <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center mb-4`}>
-      <i className={`fas ${icon} text-white text-xl`}></i>
+export const TYPE_META: Record<AnalysisType, { label: string; icon: string; tone: string }> = {
+  BODY_POSE: { label: 'Posture scan', icon: 'fa-person', tone: 'text-coral bg-coral/10 border-coral/20' },
+  MEDICAL_REPORT: { label: 'Lab report', icon: 'fa-flask-vial', tone: 'text-vital bg-vital/10 border-vital/20' },
+  MEDICINE: { label: 'Medication', icon: 'fa-capsules', tone: 'text-amberx bg-amberx/10 border-amberx/20' },
+  GENERAL_CHAT: { label: 'Coach', icon: 'fa-brain', tone: 'text-plasma-300 bg-plasma/10 border-plasma/20' },
+};
+
+const StatCard: React.FC<{ label: string; value: number; icon: string; accent: string; delay: string }> = ({
+  label, value, icon, accent, delay,
+}) => (
+  <TiltCard className={`panel panel-hover p-5 rise ${delay}`}>
+    <div className="flex items-start justify-between" style={{ transform: 'translateZ(30px)' }}>
+      <p className="eyebrow">{label}</p>
+      <i className={`fas ${icon} ${accent}`} />
     </div>
-    <p className="text-slate-500 text-sm font-medium">{label}</p>
-    <h3 className="text-2xl font-bold mt-1">{value}</h3>
-  </div>
+    <p className="font-display text-4xl font-bold mt-6 tabular-nums" style={{ transform: 'translateZ(40px)' }}>
+      {value.toString().padStart(2, '0')}
+    </p>
+  </TiltCard>
 );
 
 export const Dashboard: React.FC<{ history: AnalysisResult[] }> = ({ history }) => {
+  const { user } = useAuth();
+  const firstName = (user?.displayName || user?.email?.split('@')[0] || 'there').split(' ')[0];
   const hasData = history.length > 0;
-  const latestAnalysis = history[0];
-  const medicineCount = history.filter(h => h.type === 'MEDICINE').length;
-  
-  // Dynamic Score Calculation (simple demo logic)
-  const healthScore = hasData ? 70 + (history.length * 2) : 0;
-  const clampedScore = Math.min(healthScore, 98);
+  const latest = history[0];
+  const count = (t: AnalysisType) => history.filter((h) => h.type === t).length;
+
+  // Simple demo logic, unchanged from before: more data → higher score.
+  const score = hasData ? Math.min(70 + history.length * 2, 98) : 0;
+  const completeness = Math.min(history.length * 20, 100);
+  const flagged = history.flatMap((h) => h.metrics).filter((m) => m.status === 'warning' || m.status === 'critical').length;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 rise">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900">Your Health Dashboard</h1>
-          <p className="text-slate-500 mt-1">
-            {hasData ? "Welcome back! Here's your latest update." : "Welcome! Start your journey by analyzing your first report or photo."}
+          <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          <h1 className="font-display text-4xl md:text-5xl font-extrabold mt-2">
+            Hello, {firstName}<span className="text-vital">.</span>
+          </h1>
+          <p className="text-mist-500 mt-2">
+            {hasData ? "Here's what your body has been telling us." : 'Run your first analysis to light up your dashboard.'}
           </p>
         </div>
-        <div className="flex gap-3">
-          <Link to="/analyze" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold transition-colors flex items-center gap-2">
-            <i className="fas fa-plus"></i>
-            New Analysis
-          </Link>
-        </div>
+        <Link to="/analyze" className="btn-vital self-start md:self-auto">
+          <i className="fas fa-plus" /> New analysis
+        </Link>
       </header>
 
-      {/* Hero Score Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-8 text-white relative overflow-hidden">
-          <div className="relative z-10 flex flex-col h-full">
-            <div className="flex justify-between items-start">
+      {/* Hero: 3D vital orb + score */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <section className="lg:col-span-2 panel relative overflow-hidden rise rise-1 min-h-[340px]">
+          <div className="absolute inset-0 bg-[radial-gradient(40rem_20rem_at_80%_50%,rgba(79,240,180,0.10),transparent_70%)]" />
+          <div className="relative grid sm:grid-cols-2 h-full">
+            <div className="p-7 md:p-9 flex flex-col justify-between gap-8 order-2 sm:order-1">
               <div>
-                <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Vitalis Health Score</span>
-                <h2 className="text-5xl font-black mt-4">
-                  {hasData ? clampedScore : '--'}<span className="text-2xl font-medium text-blue-200">/100</span>
-                </h2>
-                <p className="text-blue-100 mt-2 max-w-sm">
-                  {hasData 
-                    ? `Based on ${history.length} analysis ${history.length === 1 ? 'record' : 'records'}. Your score improves as you provide more data.` 
-                    : "Upload your first health report to calculate your baseline health score."}
+                <p className="eyebrow">Vitalis health score</p>
+                <div className="mt-4 flex items-baseline gap-2">
+                  <span className="font-display text-7xl md:text-8xl font-extrabold tabular-nums glow-text text-vital">
+                    {hasData ? score : '--'}
+                  </span>
+                  <span className="font-mono text-mist-500">/100</span>
+                </div>
+                <p className="text-mist-300 mt-3 max-w-xs text-sm leading-relaxed">
+                  {hasData
+                    ? `Based on ${history.length} ${history.length === 1 ? 'record' : 'records'}. More data sharpens the picture.`
+                    : 'Upload a lab report, a posture photo or a prescription to calculate your baseline.'}
                 </p>
               </div>
-              <div className="hidden sm:block">
-                <i className="fas fa-heart-pulse text-8xl text-white/10"></i>
-              </div>
-            </div>
-            {hasData && (
-              <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-6">
-                <div className="flex items-center gap-2">
-                  <i className="fas fa-calendar"></i>
-                  <span>Last Update: {latestAnalysis.timestamp.toLocaleDateString()}</span>
+              <div className="grid grid-cols-2 gap-4 font-mono text-xs">
+                <div>
+                  <p className="text-mist-500">LAST SYNC</p>
+                  <p className="text-mist-100 mt-1">{latest ? latest.timestamp.toLocaleDateString() : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-mist-500">FLAGGED MARKERS</p>
+                  <p className={`mt-1 ${flagged ? 'text-amberx' : 'text-mist-100'}`}>{flagged}</p>
                 </div>
               </div>
-            )}
-          </div>
-          <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
-          <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <i className="fas fa-bullseye text-blue-500"></i>
-            Progress Tracker
-          </h3>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-600">Data Completeness</span>
-                <span className="font-bold">{Math.min(history.length * 20, 100)}%</span>
-              </div>
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min(history.length * 20, 100)}%` }}></div>
-              </div>
             </div>
-            <p className="text-xs text-slate-400 italic">
-              {history.length < 5 ? `Analyze ${5 - history.length} more items for a full profile.` : "Your health profile is now highly detailed."}
-            </p>
+            <VitalOrb score={hasData ? score : 0} className="h-64 sm:h-auto order-1 sm:order-2" />
           </div>
-          <Link to="/analyze" className="mt-6 w-full py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-600 font-semibold transition-colors text-sm text-center">
-            Log New Data
-          </Link>
-        </div>
+        </section>
+
+        <section className="panel p-6 flex flex-col rise rise-2">
+          <p className="eyebrow">Profile completeness</p>
+          <div className="mt-5 flex items-baseline justify-between">
+            <span className="font-display text-4xl font-bold tabular-nums">{completeness}%</span>
+            <span className="font-mono text-xs text-mist-500">{history.length}/5 records</span>
+          </div>
+          <div className="mt-4 h-2 rounded-full bg-ink-700 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-plasma to-vital shadow-[0_0_14px_#4FF0B4] transition-all duration-1000"
+              style={{ width: `${completeness}%` }}
+            />
+          </div>
+          <div className="mt-6 space-y-3 text-sm">
+            {(['MEDICAL_REPORT', 'BODY_POSE', 'MEDICINE'] as AnalysisType[]).map((t) => (
+              <div key={t} className="flex items-center justify-between">
+                <span className="flex items-center gap-3 text-mist-300">
+                  <span className={`w-8 h-8 rounded-lg border flex items-center justify-center ${TYPE_META[t].tone}`}>
+                    <i className={`fas ${TYPE_META[t].icon} text-xs`} />
+                  </span>
+                  {TYPE_META[t].label}
+                </span>
+                <span className={`font-mono text-xs ${count(t) ? 'text-vital' : 'text-mist-700'}`}>
+                  {count(t) ? '● captured' : '○ missing'}
+                </span>
+              </div>
+            ))}
+          </div>
+          <Link to="/analyze" className="btn-ghost mt-6 w-full text-sm">Log new data</Link>
+        </section>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <StatCard label="Analyses" value={history.length.toString()} icon="fa-magnifying-glass" color="bg-blue-500" />
-        <StatCard label="Meds Tracked" value={medicineCount.toString()} icon="fa-pills" color="bg-indigo-500" />
-        <StatCard label="Reports" value={history.filter(h => h.type === 'MEDICAL_REPORT').length.toString()} icon="fa-file-medical" color="bg-emerald-500" />
-        <StatCard label="Body Scans" value={history.filter(h => h.type === 'BODY_POSE').length.toString()} icon="fa-person" color="bg-rose-500" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard label="Analyses" value={history.length} icon="fa-wave-square" accent="text-vital" delay="rise-1" />
+        <StatCard label="Lab reports" value={count('MEDICAL_REPORT')} icon="fa-flask-vial" accent="text-vital" delay="rise-2" />
+        <StatCard label="Body scans" value={count('BODY_POSE')} icon="fa-person" accent="text-coral" delay="rise-3" />
+        <StatCard label="Meds tracked" value={count('MEDICINE')} icon="fa-capsules" accent="text-amberx" delay="rise-4" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <section>
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+        <section className="md:col-span-3 rise rise-2">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-slate-800">Latest Insights</h3>
-            {hasData && <Link to="/history" className="text-blue-600 font-medium text-sm">See all</Link>}
+            <h3 className="font-display text-xl font-bold">Latest insights</h3>
+            {hasData && <Link to="/history" className="font-mono text-xs text-vital hover:underline underline-offset-4">VIEW ALL →</Link>}
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {hasData ? (
               history.slice(0, 3).map((item) => (
-                <div key={item.id} className="flex gap-4 p-4 bg-white rounded-2xl border border-slate-100 items-start">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    item.type === 'BODY_POSE' ? 'bg-rose-50 text-rose-600' :
-                    item.type === 'MEDICAL_REPORT' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                  }`}>
-                    <i className={`fas ${
-                      item.type === 'BODY_POSE' ? 'fa-person' :
-                      item.type === 'MEDICAL_REPORT' ? 'fa-file-medical' : 'fa-pills'
-                    }`}></i>
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">{item.type.replace('_', ' ')} Analysis</p>
-                    <p className="text-slate-500 text-xs mt-1 line-clamp-2">{item.summary}</p>
+                <div key={item.id} className="panel panel-hover p-4 flex gap-4 items-start">
+                  <span className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${TYPE_META[item.type].tone}`}>
+                    <i className={`fas ${TYPE_META[item.type].icon}`} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm">{TYPE_META[item.type].label}</p>
+                    <p className="text-mist-500 text-sm mt-1 line-clamp-2">{item.summary}</p>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-8 text-center">
-                <p className="text-slate-400 text-sm">Your insights will appear here once you run your first analysis.</p>
+              <div className="panel border-dashed p-10 text-center text-mist-500 text-sm">
+                Your insights will appear here after your first analysis.
               </div>
             )}
           </div>
         </section>
 
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-slate-800">Your Health Log</h3>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+        <section className="md:col-span-2 rise rise-3">
+          <h3 className="font-display text-xl font-bold mb-4">Signal log</h3>
+          <div className="panel p-2">
             {hasData ? (
-              history.slice(0, 4).map((item, idx) => (
-                <div key={item.id} className={`p-4 flex items-center justify-between ${idx !== history.slice(0, 4).length - 1 ? 'border-b border-slate-50' : ''}`}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    <div>
-                      <p className="font-bold text-sm">{item.type.replace('_', ' ')} Capture</p>
-                      <p className="text-[10px] text-slate-500">{item.timestamp.toLocaleString()}</p>
-                    </div>
+              history.slice(0, 5).map((item) => (
+                <div key={item.id} className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/[0.03]">
+                  <span className="dot dot-normal" />
+                  <div className="min-w-0 flex-grow">
+                    <p className="text-sm font-medium">{TYPE_META[item.type].label}</p>
+                    <p className="font-mono text-[10px] text-mist-500">{item.timestamp.toLocaleString()}</p>
                   </div>
-                  <i className="fas fa-chevron-right text-slate-300 text-xs"></i>
+                  <span className="font-mono text-[10px] text-mist-500">{item.metrics.length} pts</span>
                 </div>
               ))
             ) : (
               <div className="p-8 text-center">
-                <p className="text-slate-400 text-sm">Start building your health history today.</p>
-                <Link to="/analyze" className="text-blue-600 text-xs font-bold mt-2 inline-block">GO TO ANALYSIS</Link>
+                <p className="text-mist-500 text-sm">No signals yet.</p>
+                <Link to="/analyze" className="font-mono text-xs text-vital mt-2 inline-block">START ANALYSIS →</Link>
               </div>
             )}
           </div>

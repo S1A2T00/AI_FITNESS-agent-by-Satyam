@@ -1,22 +1,28 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Logo } from '../views/Login';
+
+const NAV = [
+  { to: '/', icon: 'fa-chart-pie', label: 'Dashboard', short: 'Home' },
+  { to: '/analyze', icon: 'fa-wave-square', label: 'Health Analysis', short: 'Analyze' },
+  { to: '/medicine', icon: 'fa-capsules', label: 'Meds & Rx', short: 'Meds' },
+  { to: '/coach', icon: 'fa-brain', label: 'AI Coach', short: 'Coach' },
+  { to: '/history', icon: 'fa-clock-rotate-left', label: 'Health History', short: 'History' },
+];
 
 const NavItem: React.FC<{ to: string; icon: string; label: string }> = ({ to, icon, label }) => {
-  const location = useLocation();
-  const isActive = location.pathname === to;
-  
+  const isActive = useLocation().pathname === to;
   return (
     <Link
       to={to}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-        isActive 
-          ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
-          : 'text-slate-500 hover:bg-slate-100'
+      aria-current={isActive ? 'page' : undefined}
+      className={`group relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+        isActive ? 'text-mist-100 bg-vital/[0.08]' : 'text-mist-500 hover:text-mist-100 hover:bg-white/[0.03]'
       }`}
     >
-      <i className={`fas ${icon} text-lg`}></i>
+      {isActive && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-vital shadow-[0_0_12px_#4FF0B4]" />}
+      <i className={`fas ${icon} w-5 text-center ${isActive ? 'text-vital' : 'group-hover:text-mist-300'}`} />
       <span className="font-medium">{label}</span>
     </Link>
   );
@@ -24,70 +30,76 @@ const NavItem: React.FC<{ to: string; icon: string; label: string }> = ({ to, ic
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, role, signOut } = useAuth();
+  const { pathname } = useLocation();
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'User';
   const initials = displayName.slice(0, 1).toUpperCase();
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
-      {/* Sidebar - Hidden on mobile */}
-      <aside className="hidden md:flex flex-col w-64 glass border-r border-slate-200 p-6 sticky top-0 h-screen">
-        <div className="flex items-center gap-2 mb-10 px-2">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-            <i className="fas fa-heart-pulse text-xl"></i>
-          </div>
-          <span className="text-xl font-bold tracking-tight text-slate-800">Vitalis AI</span>
-        </div>
-        
-        <nav className="flex flex-col gap-2 flex-grow">
-          <NavItem to="/" icon="fa-chart-pie" label="Dashboard" />
-          <NavItem to="/analyze" icon="fa-magnifying-glass-chart" label="Health Analysis" />
-          <NavItem to="/medicine" icon="fa-pills" label="Meds & Rx" />
-          <NavItem to="/coach" icon="fa-user-doctor" label="AI Coach" />
-          <NavItem to="/history" icon="fa-clock-rotate-left" label="Health History" />
-          {role === 'admin' && <NavItem to="/admin" icon="fa-user-shield" label="Admin" />}
+    <div className="flex flex-col md:flex-row min-h-screen">
+      {/* Sidebar */}
+      <aside className="hidden md:flex flex-col w-64 shrink-0 glass border-r border-white/[0.06] p-5 sticky top-0 h-screen">
+        <Link to="/" className="flex items-center gap-3 mb-10 px-2">
+          <Logo size={38} />
+          <span className="font-display text-xl font-bold tracking-tight">Vitalis<span className="text-vital">.</span>AI</span>
+        </Link>
+
+        <p className="eyebrow px-4 mb-3">Workspace</p>
+        <nav className="flex flex-col gap-1 flex-grow">
+          {NAV.map((n) => <NavItem key={n.to} {...n} />)}
+          {role === 'admin' && (
+            <>
+              <p className="eyebrow px-4 mt-6 mb-3">Admin</p>
+              <NavItem to="/admin" icon="fa-user-shield" label="Users & Roles" />
+            </>
+          )}
         </nav>
-        
-        <div className="mt-auto pt-6 border-t border-slate-200">
-          <div className="flex items-center gap-3 px-2">
-            {user?.photoURL ? (
-              <img src={user.photoURL} referrerPolicy="no-referrer" className="w-10 h-10 rounded-full border border-slate-200" alt="Profile" />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center">{initials}</div>
-            )}
-            <div className="min-w-0 flex-grow">
-              <p className="text-sm font-semibold truncate" title={user?.email || ''}>{displayName}</p>
-              <p className="text-xs text-slate-500 capitalize">{role}</p>
-            </div>
-            <button onClick={signOut} title="Sign out" className="text-slate-400 hover:text-red-600 p-2">
-              <i className="fas fa-right-from-bracket"></i>
-            </button>
+
+        <div className="mt-auto panel !rounded-2xl p-3 flex items-center gap-3">
+          {user?.photoURL ? (
+            <img src={user.photoURL} referrerPolicy="no-referrer" className="w-10 h-10 rounded-xl" alt="" />
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-plasma/20 text-plasma-300 font-display font-bold flex items-center justify-center">{initials}</div>
+          )}
+          <div className="min-w-0 flex-grow">
+            <p className="text-sm font-semibold truncate" title={user?.email || ''}>{displayName}</p>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-vital/80">{role}</p>
           </div>
+          <button onClick={signOut} title="Sign out" aria-label="Sign out" className="text-mist-500 hover:text-coral p-2 transition-colors">
+            <i className="fas fa-arrow-right-from-bracket" />
+          </button>
         </div>
       </aside>
 
-      {/* Mobile Nav */}
-      <header className="md:hidden flex items-center justify-between p-4 bg-white border-b sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white">
-            <i className="fas fa-heart-pulse"></i>
-          </div>
-          <span className="font-bold">Vitalis AI</span>
+      {/* Mobile top bar */}
+      <header className="md:hidden flex items-center justify-between px-4 py-3 glass border-b border-white/[0.06] sticky top-0 z-50">
+        <Link to="/" className="flex items-center gap-2">
+          <Logo size={32} />
+          <span className="font-display font-bold">Vitalis<span className="text-vital">.</span>AI</span>
+        </Link>
+        <div className="flex items-center gap-1">
+          {role === 'admin' && (
+            <Link to="/admin" className="text-mist-300 p-2" aria-label="Admin"><i className="fas fa-user-shield" /></Link>
+          )}
+          <button onClick={signOut} aria-label="Sign out" className="text-mist-300 p-2"><i className="fas fa-arrow-right-from-bracket" /></button>
         </div>
-        <button onClick={signOut} title="Sign out" className="text-slate-600 p-2"><i className="fas fa-right-from-bracket text-xl"></i></button>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-grow p-4 md:p-8 lg:p-12 overflow-y-auto">
-        <div className="max-w-6xl mx-auto">
-          {children}
-        </div>
+      {/* Main */}
+      <main className="flex-grow min-w-0 px-4 py-6 md:p-8 lg:p-12 pb-28 md:pb-12">
+        <div className="max-w-6xl mx-auto">{children}</div>
       </main>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-3 px-2 z-50">
-        <Link to="/" className="flex flex-col items-center gap-1 text-slate-400"><i className="fas fa-chart-pie"></i><span className="text-[10px]">Home</span></Link>
-        <Link to="/analyze" className="flex flex-col items-center gap-1 text-slate-400"><i className="fas fa-magnifying-glass-chart"></i><span className="text-[10px]">Analyze</span></Link>
-        <Link to="/coach" className="flex flex-col items-center gap-1 text-slate-400"><i className="fas fa-user-doctor"></i><span className="text-[10px]">Coach</span></Link>
+      {/* Mobile bottom nav */}
+      <nav className="md:hidden fixed bottom-3 left-3 right-3 glass border border-white/[0.08] rounded-2xl flex justify-around py-2 z-50 shadow-2xl">
+        {NAV.map((n) => {
+          const active = pathname === n.to;
+          return (
+            <Link key={n.to} to={n.to} className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl ${active ? 'text-vital' : 'text-mist-500'}`}>
+              <i className={`fas ${n.icon}`} />
+              <span className="text-[10px] font-medium">{n.short}</span>
+            </Link>
+          );
+        })}
       </nav>
     </div>
   );

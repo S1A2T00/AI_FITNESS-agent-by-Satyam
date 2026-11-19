@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { FullPageSpinner } from "../components/ProtectedRoute";
+import { DnaHelix } from "../components/Three3D";
 
 type Mode = "signin" | "signup" | "reset";
 
@@ -60,100 +61,120 @@ export const Login: React.FC = () => {
   };
 
   const title = { signin: "Welcome back", signup: "Create your account", reset: "Reset password" }[mode];
+  const subtitle = {
+    signin: "Sign in to your health intelligence.",
+    signup: "Start tracking reports, posture and medication with AI.",
+    reset: "We'll email you a link to set a new password.",
+  }[mode];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-            <i className="fas fa-heart-pulse text-xl"></i>
-          </div>
-          <span className="text-xl font-bold tracking-tight text-slate-800">Vitalis AI</span>
+    <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr]">
+      {/* Left: brand + 3D helix */}
+      <section className="relative hidden lg:flex flex-col justify-between p-12 overflow-hidden">
+        <div className="flex items-center gap-3 rise">
+          <Logo />
+          <span className="font-display text-xl font-bold tracking-tight">Vitalis<span className="text-vital">.</span>AI</span>
         </div>
 
-        <h1 className="text-2xl font-extrabold text-slate-900">{title}</h1>
+        <DnaHelix className="absolute inset-y-0 right-0 w-3/4" />
 
-        {configError && (
-          <p className="mt-4 text-sm bg-amber-50 text-amber-800 border border-amber-100 rounded-xl p-3">{configError}</p>
-        )}
+        <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-ink-950 via-ink-950/80 to-transparent pointer-events-none" />
+        <div className="relative max-w-md rise rise-2">
+          <p className="eyebrow mb-4">Holistic health intelligence</p>
+          <h1 className="font-display text-5xl xl:text-6xl font-extrabold leading-[1.02]">
+            Read your body<br />like <span className="text-vital glow-text">data.</span>
+          </h1>
+          <p className="mt-5 text-mist-300 text-lg leading-relaxed">
+            Lab reports, posture scans and prescriptions, decoded by AI into plain-language insight.
+          </p>
+          <div className="mt-8 flex gap-6 font-mono text-xs text-mist-500">
+            <span><span className="dot dot-normal mr-2" />Lab reports</span>
+            <span><span className="dot dot-warning mr-2" />Posture</span>
+            <span><span className="dot dot-critical mr-2" />Medication</span>
+          </div>
+        </div>
+      </section>
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          {mode === "signup" && (
-            <input
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Full name"
-              autoComplete="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
+      {/* Right: auth card */}
+      <section className="relative flex flex-col items-center justify-center p-5 sm:p-10">
+        <div className="lg:hidden w-full max-w-md h-48 sm:h-56 -mb-6">
+          <DnaHelix className="h-full" />
+        </div>
+
+        <div className="relative w-full max-w-md panel p-7 sm:p-9 rise rise-1">
+          <div className="flex items-center gap-3 mb-8 lg:hidden">
+            <Logo />
+            <span className="font-display text-lg font-bold">Vitalis<span className="text-vital">.</span>AI</span>
+          </div>
+
+          <p className="eyebrow">{mode === "signup" ? "New account" : mode === "reset" ? "Recovery" : "Secure sign-in"}</p>
+          <h2 className="font-display text-3xl font-bold mt-2">{title}</h2>
+          <p className="text-mist-500 mt-1 text-sm">{subtitle}</p>
+
+          {configError && (
+            <p className="mt-5 text-sm bg-amberx/10 text-amberx border border-amberx/25 rounded-xl p-3">{configError}</p>
           )}
-          <input
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            type="email"
-            placeholder="Email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          {mode !== "reset" && (
-            <input
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              type="password"
-              placeholder="Password"
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              minLength={6}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          )}
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {info && <p className="text-sm text-emerald-700">{info}</p>}
+          <form onSubmit={onSubmit} className="mt-7 space-y-3.5">
+            {mode === "signup" && (
+              <input className="field" placeholder="Full name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+            )}
+            <input className="field" type="email" placeholder="Email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            {mode !== "reset" && (
+              <input
+                className="field"
+                type="password"
+                placeholder="Password"
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                minLength={6}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            )}
 
-          <button
-            type="submit"
-            disabled={busy || !!configError}
-            className="w-full bg-blue-600 text-white font-semibold rounded-xl py-3 hover:bg-blue-700 disabled:opacity-50"
-          >
-            {busy ? <i className="fas fa-circle-notch fa-spin"></i> : { signin: "Sign in", signup: "Create account", reset: "Send reset link" }[mode]}
-          </button>
-        </form>
+            {error && <p className="text-sm text-coral flex items-center gap-2"><i className="fas fa-circle-exclamation" />{error}</p>}
+            {info && <p className="text-sm text-vital flex items-center gap-2"><i className="fas fa-circle-check" />{info}</p>}
 
-        {mode !== "reset" && (
-          <>
-            <div className="flex items-center gap-3 my-6 text-xs text-slate-400">
-              <div className="flex-grow border-t border-slate-200"></div>OR<div className="flex-grow border-t border-slate-200"></div>
-            </div>
-            <button
-              onClick={() => run(signInWithGoogle)}
-              disabled={busy || !!configError}
-              className="w-full border border-slate-200 rounded-xl py-3 font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <i className="fab fa-google"></i> Continue with Google
+            <button type="submit" disabled={busy || !!configError} className="btn-vital w-full !py-3.5">
+              {busy ? <i className="fas fa-circle-notch fa-spin" /> : { signin: "Sign in", signup: "Create account", reset: "Send reset link" }[mode]}
+              {!busy && <i className="fas fa-arrow-right text-sm" />}
             </button>
-          </>
-        )}
+          </form>
 
-        <div className="mt-6 text-sm text-center text-slate-500 space-y-2">
-          {mode === "signin" && (
+          {mode !== "reset" && (
             <>
-              <p>
-                <button className="text-blue-600 hover:underline" onClick={() => setMode("reset")}>Forgot password?</button>
-              </p>
-              <p>
-                New here? <button className="text-blue-600 hover:underline" onClick={() => setMode("signup")}>Create an account</button>
-              </p>
+              <div className="flex items-center gap-3 my-6 eyebrow !text-mist-700">
+                <div className="flex-grow h-px bg-mist-700/40" />or<div className="flex-grow h-px bg-mist-700/40" />
+              </div>
+              <button onClick={() => run(signInWithGoogle)} disabled={busy || !!configError} className="btn-ghost w-full disabled:opacity-40">
+                <i className="fab fa-google" /> Continue with Google
+              </button>
             </>
           )}
-          {mode !== "signin" && (
-            <p>
-              <button className="text-blue-600 hover:underline" onClick={() => setMode("signin")}>Back to sign in</button>
-            </p>
-          )}
+
+          <div className="mt-7 text-sm text-center text-mist-500 space-y-2">
+            {mode === "signin" && (
+              <>
+                <p><button className="text-mist-300 hover:text-vital transition-colors" onClick={() => setMode("reset")}>Forgot password?</button></p>
+                <p>New here? <button className="text-vital hover:underline underline-offset-4" onClick={() => setMode("signup")}>Create an account</button></p>
+              </>
+            )}
+            {mode !== "signin" && (
+              <p><button className="text-vital hover:underline underline-offset-4" onClick={() => setMode("signin")}>← Back to sign in</button></p>
+            )}
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
+
+export const Logo: React.FC<{ size?: number }> = ({ size = 40 }) => (
+  <div
+    className="relative rounded-xl flex items-center justify-center text-ink-950 shrink-0"
+    style={{ width: size, height: size, background: "linear-gradient(140deg,#8AF7CF,#22D497)", boxShadow: "0 0 24px rgba(79,240,180,.45)" }}
+  >
+    <i className="fas fa-heart-pulse" style={{ fontSize: size * 0.45 }} />
+  </div>
+);

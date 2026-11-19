@@ -43,19 +43,20 @@ export const AdminPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-3xl font-extrabold text-slate-900">Admin · Users</h1>
-        <p className="text-slate-500 mt-1">Manage who has admin access. Role changes sign the user out of other sessions.</p>
+      <header className="rise">
+        <p className="eyebrow">Admin</p>
+        <h1 className="font-display text-4xl font-extrabold mt-2">Users &amp; roles<span className="text-plasma">.</span></h1>
+        <p className="text-mist-500 mt-2">Manage who has admin access. Role changes sign the user out of other sessions.</p>
       </header>
 
-      {error && <p className="bg-red-50 border border-red-100 text-red-700 rounded-2xl p-4 text-sm">{error}</p>}
+      {error && <p className="border border-coral/30 bg-coral/10 text-coral rounded-2xl p-4 text-sm">{error}</p>}
 
-      {!users && !error && <i className="fas fa-circle-notch fa-spin text-2xl text-blue-600"></i>}
+      {!users && !error && <i className="fas fa-circle-notch fa-spin text-2xl text-vital"></i>}
 
       {users && (
-        <div className="bg-white rounded-3xl border border-slate-200 overflow-x-auto">
+        <div className="panel overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-slate-500 border-b border-slate-100">
+            <thead className="text-left eyebrow border-b border-white/[0.06]">
               <tr>
                 <th className="p-4">User</th>
                 <th className="p-4">Last sign-in</th>
@@ -65,19 +66,19 @@ export const AdminPanel: React.FC = () => {
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.uid} className="border-b border-slate-50 last:border-0">
+                <tr key={u.uid} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]">
                   <td className="p-4">
                     <p className="font-semibold">{u.displayName || "—"}</p>
-                    <p className="text-slate-500">{u.email}</p>
-                    {u.disabled && <span className="text-xs text-red-600">Disabled</span>}
+                    <p className="text-mist-500">{u.email}</p>
+                    {u.disabled && <span className="font-mono text-[10px] text-coral">Disabled</span>}
                   </td>
-                  <td className="p-4 text-slate-500">
+                  <td className="p-4 text-mist-500 font-mono text-xs">
                     {u.lastSignIn ? new Date(u.lastSignIn).toLocaleString() : "Never"}
                   </td>
-                  <td className="p-4 text-slate-500">{u.analyses}</td>
+                  <td className="p-4 text-mist-500 font-mono text-xs">{u.analyses}</td>
                   <td className="p-4">
                     <select
-                      className="border border-slate-200 rounded-lg px-2 py-1"
+                      className="field !w-auto !py-1.5 !px-3 text-sm"
                       value={u.role}
                       disabled={saving === u.uid || u.uid === user?.uid}
                       onChange={(e) => changeRole(u.uid, e.target.value as Role)}
