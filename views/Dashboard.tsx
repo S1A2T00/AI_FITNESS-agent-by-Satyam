@@ -1,166 +1,173 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { AnalysisResult } from '../types';
+import { AnalysisResult, AnalysisType } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { Sculpture } from '../components/Three3D';
+import { healthScore } from '../lib/progress';
 
-const StatCard: React.FC<{ label: string; value: string; icon: string; color: string }> = ({ label, value, icon, color }) => (
-  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-    <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center mb-4`}>
-      <i className={`fas ${icon} text-white text-xl`}></i>
-    </div>
-    <p className="text-slate-500 text-sm font-medium">{label}</p>
-    <h3 className="text-2xl font-bold mt-1">{value}</h3>
-  </div>
+export const TYPE_META: Record<AnalysisType, { label: string; icon: string; tone: string }> = {
+  MEDICAL_REPORT: { label: 'Lab report', icon: 'fa-flask-vial', tone: 'bg-brand-50 text-brand-700' },
+  BODY_POSE: { label: 'Posture scan', icon: 'fa-person', tone: 'bg-indigo-50 text-indigo-600' },
+  MEDICINE: { label: 'Medication', icon: 'fa-capsules', tone: 'bg-amber-50 text-amber-700' },
+  GENERAL_CHAT: { label: 'Coach', icon: 'fa-comment-medical', tone: 'bg-stone-100 text-stone-600' },
+};
+
+export const TypeIcon: React.FC<{ type: AnalysisType; size?: string }> = ({ type, size = 'w-9 h-9' }) => (
+  <span className={`${size} rounded-lg flex items-center justify-center shrink-0 ${TYPE_META[type].tone}`}>
+    <i className={`fas ${TYPE_META[type].icon} text-[13px]`} />
+  </span>
 );
 
+export const statusLabel: Record<string, string> = { normal: 'Normal', warning: 'Watch', critical: 'Attention', neutral: 'Info' };
+
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+};
+
+const relative = (d: Date) => {
+  const mins = Math.round((Date.now() - d.getTime()) / 60000);
+  if (mins < 60) return `${Math.max(mins, 1)}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  return days < 7 ? `${days}d ago` : d.toLocaleDateString();
+};
+
 export const Dashboard: React.FC<{ history: AnalysisResult[] }> = ({ history }) => {
+  const { user } = useAuth();
+  const firstName = (user?.displayName || user?.email?.split('@')[0] || '').split(' ')[0];
   const hasData = history.length > 0;
-  const latestAnalysis = history[0];
-  const medicineCount = history.filter(h => h.type === 'MEDICINE').length;
-  
-  // Dynamic Score Calculation (simple demo logic)
-  const healthScore = hasData ? 70 + (history.length * 2) : 0;
-  const clampedScore = Math.min(healthScore, 98);
+  const count = (t: AnalysisType) => history.filter((h) => h.type === t).length;
+
+  // Real score: latest lab-marker statuses minus posture findings (see lib/progress).
+  const score = healthScore(history);
+  const flagged = history
+    .flatMap((h) => h.metrics.map((m) => ({ ...m, type: h.type, at: h.timestamp, id: h.id })))
+    .filter((m) => m.status === 'warning' || m.status === 'critical')
+    .slice(0, 5);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 fade-up">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900">Your Health Dashboard</h1>
-          <p className="text-slate-500 mt-1">
-            {hasData ? "Welcome back! Here's your latest update." : "Welcome! Start your journey by analyzing your first report or photo."}
-          </p>
+          <p className="text-sm text-stone-500">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          <h1 className="text-[28px] font-semibold tracking-tight mt-1">
+            {greeting()}{firstName ? `, ${firstName}` : ''}
+          </h1>
         </div>
-        <div className="flex gap-3">
-          <Link to="/analyze" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold transition-colors flex items-center gap-2">
-            <i className="fas fa-plus"></i>
-            New Analysis
-          </Link>
-        </div>
+        <Link to="/analyze" className="btn btn-primary self-start sm:self-auto">
+          <i className="fas fa-plus text-xs" /> New analysis
+        </Link>
       </header>
 
-      {/* Hero Score Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-8 text-white relative overflow-hidden">
-          <div className="relative z-10 flex flex-col h-full">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Vitalis Health Score</span>
-                <h2 className="text-5xl font-black mt-4">
-                  {hasData ? clampedScore : '--'}<span className="text-2xl font-medium text-blue-200">/100</span>
-                </h2>
-                <p className="text-blue-100 mt-2 max-w-sm">
-                  {hasData 
-                    ? `Based on ${history.length} analysis ${history.length === 1 ? 'record' : 'records'}. Your score improves as you provide more data.` 
-                    : "Upload your first health report to calculate your baseline health score."}
-                </p>
-              </div>
-              <div className="hidden sm:block">
-                <i className="fas fa-heart-pulse text-8xl text-white/10"></i>
-              </div>
-            </div>
+      {/* Score */}
+      <section className="card overflow-hidden grid md:grid-cols-5 fade-up">
+        <div className="md:col-span-3 p-6 sm:p-8 flex flex-col">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-stone-500">Health score</p>
             {hasData && (
-              <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-6">
-                <div className="flex items-center gap-2">
-                  <i className="fas fa-calendar"></i>
-                  <span>Last Update: {latestAnalysis.timestamp.toLocaleDateString()}</span>
-                </div>
-              </div>
+              <Link to="/progress" className="text-sm text-stone-500 hover:text-stone-900">
+                View progress <i className="fas fa-arrow-right text-[10px] ml-0.5" />
+              </Link>
             )}
           </div>
-          <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-        </div>
+          <div className="mt-3 flex items-baseline gap-3">
+            <span className="text-6xl sm:text-7xl font-semibold tracking-tight">{score ?? '—'}</span>
+            {score !== null && <span className="text-stone-400">/ 100</span>}
+          </div>
+          <p className="mt-3 text-[15px] text-stone-600 max-w-sm leading-relaxed">
+            {score !== null
+              ? 'Based on the latest status of each lab marker and your most recent posture scan.'
+              : 'Run a lab report or posture analysis to get your baseline score.'}
+          </p>
 
-        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
-          <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <i className="fas fa-bullseye text-blue-500"></i>
-            Progress Tracker
-          </h3>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-600">Data Completeness</span>
-                <span className="font-bold">{Math.min(history.length * 20, 100)}%</span>
-              </div>
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min(history.length * 20, 100)}%` }}></div>
-              </div>
+          <dl className="mt-auto pt-8 grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <dt className="text-stone-500">Last analysis</dt>
+              <dd className="mt-1 font-medium">{hasData ? relative(history[0].timestamp) : '—'}</dd>
             </div>
-            <p className="text-xs text-slate-400 italic">
-              {history.length < 5 ? `Analyze ${5 - history.length} more items for a full profile.` : "Your health profile is now highly detailed."}
-            </p>
-          </div>
-          <Link to="/analyze" className="mt-6 w-full py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-600 font-semibold transition-colors text-sm text-center">
-            Log New Data
-          </Link>
+            <div>
+              <dt className="text-stone-500">Flagged</dt>
+              <dd className={`mt-1 font-medium tnum ${flagged.length ? 'text-amber-700' : ''}`}>{flagged.length}</dd>
+            </div>
+            <div>
+              <dt className="text-stone-500">Profile</dt>
+              <dd className="mt-1 font-medium tnum">{Math.min(history.length * 20, 100)}%</dd>
+            </div>
+          </dl>
         </div>
-      </div>
+        <div className="md:col-span-2 relative min-h-[260px] bg-gradient-to-b from-[#F1F7F3] to-[#E6F0EA] md:border-l border-t md:border-t-0 border-line">
+          <Sculpture score={score ?? 0} className="absolute inset-0" />
+        </div>
+      </section>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <StatCard label="Analyses" value={history.length.toString()} icon="fa-magnifying-glass" color="bg-blue-500" />
-        <StatCard label="Meds Tracked" value={medicineCount.toString()} icon="fa-pills" color="bg-indigo-500" />
-        <StatCard label="Reports" value={history.filter(h => h.type === 'MEDICAL_REPORT').length.toString()} icon="fa-file-medical" color="bg-emerald-500" />
-        <StatCard label="Body Scans" value={history.filter(h => h.type === 'BODY_POSE').length.toString()} icon="fa-person" color="bg-rose-500" />
-      </div>
+      {/* Stat strip */}
+      <section className="card !bg-line overflow-hidden grid grid-cols-2 md:grid-cols-4 gap-px fade-up">
+        {[
+          { label: 'Analyses', value: history.length },
+          { label: 'Lab reports', value: count('MEDICAL_REPORT') },
+          { label: 'Posture scans', value: count('BODY_POSE') },
+          { label: 'Medications', value: count('MEDICINE') },
+        ].map((s) => (
+          <div key={s.label} className="p-5 bg-white">
+            <p className="text-sm text-stone-500">{s.label}</p>
+            <p className="mt-2 text-2xl font-semibold tnum">{s.value}</p>
+          </div>
+        ))}
+      </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-slate-800">Latest Insights</h3>
-            {hasData && <Link to="/history" className="text-blue-600 font-medium text-sm">See all</Link>}
+      <div className="grid lg:grid-cols-5 gap-6">
+        <section className="lg:col-span-3 card fade-up">
+          <div className="flex items-center justify-between px-5 h-14 border-b border-line">
+            <h2 className="font-semibold">Recent analyses</h2>
+            {hasData && <Link to="/history" className="text-sm text-stone-500 hover:text-stone-900">View all</Link>}
           </div>
-          <div className="space-y-4">
-            {hasData ? (
-              history.slice(0, 3).map((item) => (
-                <div key={item.id} className="flex gap-4 p-4 bg-white rounded-2xl border border-slate-100 items-start">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    item.type === 'BODY_POSE' ? 'bg-rose-50 text-rose-600' :
-                    item.type === 'MEDICAL_REPORT' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                  }`}>
-                    <i className={`fas ${
-                      item.type === 'BODY_POSE' ? 'fa-person' :
-                      item.type === 'MEDICAL_REPORT' ? 'fa-file-medical' : 'fa-pills'
-                    }`}></i>
+          {hasData ? (
+            <ul className="divide-y divide-line">
+              {history.slice(0, 4).map((item) => (
+                <li key={item.id} className="flex items-start gap-3 px-5 py-4">
+                  <TypeIcon type={item.type} />
+                  <div className="min-w-0 flex-grow">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium">{TYPE_META[item.type].label}</p>
+                      <span className="text-xs text-stone-400 shrink-0">{relative(item.timestamp)}</span>
+                    </div>
+                    <p className="text-sm text-stone-500 mt-0.5 line-clamp-1">{item.summary}</p>
                   </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">{item.type.replace('_', ' ')} Analysis</p>
-                    <p className="text-slate-500 text-xs mt-1 line-clamp-2">{item.summary}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-8 text-center">
-                <p className="text-slate-400 text-sm">Your insights will appear here once you run your first analysis.</p>
-              </div>
-            )}
-          </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="px-5 py-12 text-center">
+              <p className="text-sm text-stone-500">No analyses yet.</p>
+              <Link to="/analyze" className="btn btn-secondary mt-4">Start an analysis</Link>
+            </div>
+          )}
         </section>
 
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-slate-800">Your Health Log</h3>
+        <section className="lg:col-span-2 card fade-up">
+          <div className="flex items-center px-5 h-14 border-b border-line">
+            <h2 className="font-semibold">Needs attention</h2>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-            {hasData ? (
-              history.slice(0, 4).map((item, idx) => (
-                <div key={item.id} className={`p-4 flex items-center justify-between ${idx !== history.slice(0, 4).length - 1 ? 'border-b border-slate-50' : ''}`}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    <div>
-                      <p className="font-bold text-sm">{item.type.replace('_', ' ')} Capture</p>
-                      <p className="text-[10px] text-slate-500">{item.timestamp.toLocaleString()}</p>
-                    </div>
+          {flagged.length ? (
+            <ul className="divide-y divide-line">
+              {flagged.map((m, i) => (
+                <li key={`${m.id}-${i}`} className="px-5 py-3.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{m.label}</p>
+                    <p className="text-xs text-stone-500 tnum">{m.value} · {TYPE_META[m.type].label}</p>
                   </div>
-                  <i className="fas fa-chevron-right text-slate-300 text-xs"></i>
-                </div>
-              ))
-            ) : (
-              <div className="p-8 text-center">
-                <p className="text-slate-400 text-sm">Start building your health history today.</p>
-                <Link to="/analyze" className="text-blue-600 text-xs font-bold mt-2 inline-block">GO TO ANALYSIS</Link>
-              </div>
-            )}
-          </div>
+                  <span className={`pill pill-${m.status} shrink-0`}><span className="dot" />{statusLabel[m.status]}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="px-5 py-12 text-center">
+              <span className="inline-flex w-9 h-9 rounded-full bg-brand-50 text-brand-600 items-center justify-center"><i className="fas fa-check text-sm" /></span>
+              <p className="text-sm text-stone-500 mt-3">Nothing flagged right now.</p>
+            </div>
+          )}
         </section>
       </div>
     </div>

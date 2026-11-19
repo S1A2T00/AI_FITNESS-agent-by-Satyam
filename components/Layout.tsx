@@ -1,94 +1,156 @@
-
-import React from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Logo } from './Logo';
 
-const NavItem: React.FC<{ to: string; icon: string; label: string }> = ({ to, icon, label }) => {
-  const location = useLocation();
-  const isActive = location.pathname === to;
-  
+const NAV = [
+  { to: '/', icon: 'fa-house', label: 'Overview' },
+  { to: '/analyze', icon: 'fa-wand-magic-sparkles', label: 'Analyze' },
+  { to: '/progress', icon: 'fa-chart-line', label: 'Progress' },
+  { to: '/history', icon: 'fa-clock-rotate-left', label: 'History' },
+  { to: '/medicine', icon: 'fa-capsules', label: 'Meds' },
+  { to: '/coach', icon: 'fa-comment-medical', label: 'Coach' },
+];
+
+// Only Chromium renders SVG filters inside backdrop-filter (the refraction).
+const canRefract = (() => {
+  const brands = (navigator as Navigator & { userAgentData?: { brands?: { brand: string }[] } }).userAgentData?.brands;
+  return !!brands?.some((b) => b.brand === 'Chromium');
+})();
+
+/** Floating liquid-glass capsule navigation, bottom centre. */
+const CapsuleNav: React.FC = () => {
+  const { pathname } = useLocation();
+  const wrap = useRef<HTMLDivElement>(null);
+  const items = useRef<(HTMLAnchorElement | null)[]>([]);
+  const [pill, setPill] = useState<{ x: number; w: number } | null>(null);
+  const activeIndex = NAV.findIndex((n) => n.to === pathname);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = items.current[activeIndex];
+      setPill(el ? { x: el.offsetLeft, w: el.offsetWidth } : null);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (wrap.current) ro.observe(wrap.current);
+    return () => ro.disconnect();
+  }, [activeIndex]);
+
   return (
-    <Link
-      to={to}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-        isActive 
-          ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
-          : 'text-slate-500 hover:bg-slate-100'
-      }`}
+    <nav
+      aria-label="Main"
+      className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-24px)]"
     >
-      <i className={`fas ${icon} text-lg`}></i>
-      <span className="font-medium">{label}</span>
-    </Link>
+      <div ref={wrap} className={`liquid-glass ${canRefract ? 'refract' : ''} relative flex items-center gap-0.5 p-1.5 rounded-full`}>
+        {pill && (
+          <span
+            aria-hidden="true"
+            className="liquid-pill absolute top-1.5 bottom-1.5 left-0 rounded-full"
+            style={{ transform: `translateX(${pill.x}px)`, width: pill.w }}
+          />
+        )}
+        {NAV.map((n, i) => {
+          const active = i === activeIndex;
+          return (
+            <Link
+              key={n.to}
+              to={n.to}
+              ref={(el) => {
+                items.current[i] = el;
+              }}
+              aria-current={active ? 'page' : undefined}
+              aria-label={n.label}
+              className={`relative z-10 h-11 rounded-full flex items-center justify-center gap-2 transition-colors ${
+                active ? 'text-stone-900 px-4' : 'text-stone-500 hover:text-stone-900 px-3.5 sm:px-4'
+              }`}
+            >
+              <i className={`fas ${n.icon} text-[15px]`} />
+              <span className={`text-sm font-medium ${active ? 'inline' : 'hidden sm:inline'}`}>{n.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 };
 
-export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+/** Avatar button with a small glass popover: who you are, admin link, sign out. */
+const AccountMenu: React.FC = () => {
   const { user, role, signOut } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'User';
-  const initials = displayName.slice(0, 1).toUpperCase();
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, [open]);
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
-      {/* Sidebar - Hidden on mobile */}
-      <aside className="hidden md:flex flex-col w-64 glass border-r border-slate-200 p-6 sticky top-0 h-screen">
-        <div className="flex items-center gap-2 mb-10 px-2">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-            <i className="fas fa-heart-pulse text-xl"></i>
-          </div>
-          <span className="text-xl font-bold tracking-tight text-slate-800">Vitalis AI</span>
-        </div>
-        
-        <nav className="flex flex-col gap-2 flex-grow">
-          <NavItem to="/" icon="fa-chart-pie" label="Dashboard" />
-          <NavItem to="/analyze" icon="fa-magnifying-glass-chart" label="Health Analysis" />
-          <NavItem to="/medicine" icon="fa-pills" label="Meds & Rx" />
-          <NavItem to="/coach" icon="fa-user-doctor" label="AI Coach" />
-          <NavItem to="/history" icon="fa-clock-rotate-left" label="Health History" />
-          {role === 'admin' && <NavItem to="/admin" icon="fa-user-shield" label="Admin" />}
-        </nav>
-        
-        <div className="mt-auto pt-6 border-t border-slate-200">
-          <div className="flex items-center gap-3 px-2">
-            {user?.photoURL ? (
-              <img src={user.photoURL} referrerPolicy="no-referrer" className="w-10 h-10 rounded-full border border-slate-200" alt="Profile" />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center">{initials}</div>
-            )}
-            <div className="min-w-0 flex-grow">
-              <p className="text-sm font-semibold truncate" title={user?.email || ''}>{displayName}</p>
-              <p className="text-xs text-slate-500 capitalize">{role}</p>
-            </div>
-            <button onClick={signOut} title="Sign out" className="text-slate-400 hover:text-red-600 p-2">
-              <i className="fas fa-right-from-bracket"></i>
-            </button>
-          </div>
-        </div>
-      </aside>
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`liquid-glass ${canRefract ? 'refract' : ''} rounded-full p-1.5 pr-3.5 flex items-center gap-2 text-sm font-medium`}
+      >
+        {user?.photoURL ? (
+          <img src={user.photoURL} referrerPolicy="no-referrer" className="w-7 h-7 rounded-full" alt="" />
+        ) : (
+          <span className="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-xs font-semibold flex items-center justify-center">
+            {displayName.slice(0, 1).toUpperCase()}
+          </span>
+        )}
+        <span className="hidden sm:inline max-w-[10rem] truncate">{displayName}</span>
+        <i className={`fas fa-chevron-down text-[10px] text-stone-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
 
-      {/* Mobile Nav */}
-      <header className="md:hidden flex items-center justify-between p-4 bg-white border-b sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white">
-            <i className="fas fa-heart-pulse"></i>
+      {open && (
+        <div role="menu" className="liquid-glass absolute right-0 mt-2 w-60 rounded-2xl p-1.5 fade-up">
+          <div className="px-3 py-2.5">
+            <p className="text-sm font-medium truncate">{displayName}</p>
+            <p className="text-xs text-stone-500 truncate">{user?.email}</p>
+            <span className="pill pill-neutral mt-2 capitalize">{role}</span>
           </div>
-          <span className="font-bold">Vitalis AI</span>
+          <div className="h-px bg-stone-900/10 my-1" />
+          {role === 'admin' && (
+            <Link role="menuitem" to="/admin" onClick={() => setOpen(false)} className="flex items-center gap-3 h-9 px-3 rounded-xl text-sm hover:bg-white/70">
+              <i className="fas fa-users w-4 text-center text-stone-500 text-xs" /> Users &amp; roles
+            </Link>
+          )}
+          <button role="menuitem" onClick={signOut} className="w-full flex items-center gap-3 h-9 px-3 rounded-xl text-sm hover:bg-white/70 text-left">
+            <i className="fas fa-arrow-right-from-bracket w-4 text-center text-stone-500 text-xs" /> Sign out
+          </button>
         </div>
-        <button onClick={signOut} title="Sign out" className="text-slate-600 p-2"><i className="fas fa-right-from-bracket text-xl"></i></button>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-grow p-4 md:p-8 lg:p-12 overflow-y-auto">
-        <div className="max-w-6xl mx-auto">
-          {children}
-        </div>
-      </main>
-
-      {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-3 px-2 z-50">
-        <Link to="/" className="flex flex-col items-center gap-1 text-slate-400"><i className="fas fa-chart-pie"></i><span className="text-[10px]">Home</span></Link>
-        <Link to="/analyze" className="flex flex-col items-center gap-1 text-slate-400"><i className="fas fa-magnifying-glass-chart"></i><span className="text-[10px]">Analyze</span></Link>
-        <Link to="/coach" className="flex flex-col items-center gap-1 text-slate-400"><i className="fas fa-user-doctor"></i><span className="text-[10px]">Coach</span></Link>
-      </nav>
+      )}
     </div>
   );
 };
+
+export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className="min-h-screen bg-canvas">
+    <header className="sticky top-0 z-40 px-4 sm:px-6 md:px-10 pt-3 pb-2 bg-gradient-to-b from-canvas via-canvas/85 to-canvas/0">
+      <div className="max-w-5xl mx-auto h-12 flex items-center justify-between">
+        <Link to="/" aria-label="Vitalis home" className={`liquid-glass ${canRefract ? 'refract' : ''} rounded-full py-1.5 pl-1.5 pr-4`}>
+          <Logo />
+        </Link>
+        <AccountMenu />
+      </div>
+    </header>
+
+    <main className="px-4 sm:px-6 md:px-10 pt-4 md:pt-6 pb-32">
+      <div className="max-w-5xl mx-auto">{children}</div>
+    </main>
+
+    <CapsuleNav />
+  </div>
+);

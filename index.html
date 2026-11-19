@@ -1,32 +1,142 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vitalis AI</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="theme-color" content="#FAFAF9">
+  <title>Vitalis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Geist', 'system-ui', 'sans-serif'],
+            mono: ['"Geist Mono"', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            canvas: '#FAFAF9',
+            line: '#E7E5E4',
+            brand: { 50: '#ECFDF5', 100: '#D1FAE5', 500: '#10B981', 600: '#059669', 700: '#047857' },
+          },
+          boxShadow: {
+            card: '0 1px 2px rgba(28,25,23,0.04), 0 1px 1px rgba(28,25,23,0.02)',
+            lift: '0 12px 32px -12px rgba(28,25,23,0.18)',
+          },
+        },
+      },
+    };
+  </script>
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px); }
-  </style>
-<script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4"
-  }
-}
-</script>
+    html, body { background: #FAFAF9; }
+    body {
+      font-family: 'Geist', system-ui, sans-serif;
+      color: #1C1917;
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "ss01", "cv11";
+    }
+    .tnum { font-variant-numeric: tabular-nums; }
 
+    .card { background: #fff; border: 1px solid #E7E5E4; border-radius: 1rem; box-shadow: 0 1px 2px rgba(28,25,23,0.04); }
+    .card-link { transition: border-color .15s, box-shadow .15s; }
+    .card-link:hover { border-color: #D6D3D1; box-shadow: 0 6px 20px -10px rgba(28,25,23,0.18); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      height: 2.5rem; padding: 0 1rem; border-radius: .7rem; font-size: .875rem; font-weight: 500;
+      transition: background .15s, border-color .15s, color .15s, opacity .15s; white-space: nowrap;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { background: #1C1917; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #292524; }
+    .btn-secondary { background: #fff; color: #1C1917; border: 1px solid #E7E5E4; box-shadow: 0 1px 2px rgba(28,25,23,0.04); }
+    .btn-secondary:hover:not(:disabled) { background: #F5F5F4; }
+    .btn-ghost { color: #57534E; }
+    .btn-ghost:hover { background: #F5F5F4; color: #1C1917; }
+
+    .input {
+      width: 100%; height: 2.75rem; padding: 0 .9rem; border-radius: .7rem; font-size: .9375rem;
+      background: #fff; border: 1px solid #E7E5E4; color: #1C1917; outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .input::placeholder { color: #A8A29E; }
+    .input:focus { border-color: #1C1917; box-shadow: 0 0 0 3px rgba(28,25,23,0.08); }
+
+    .pill { display: inline-flex; align-items: center; gap: .375rem; padding: .125rem .5rem; border-radius: 9999px; font-size: .75rem; font-weight: 500; }
+    .pill-normal { background: #ECFDF5; color: #047857; box-shadow: inset 0 0 0 1px rgba(5,150,105,0.2); }
+    .pill-warning { background: #FFFBEB; color: #B45309; box-shadow: inset 0 0 0 1px rgba(217,119,6,0.22); }
+    .pill-critical { background: #FEF2F2; color: #B91C1C; box-shadow: inset 0 0 0 1px rgba(220,38,38,0.2); }
+    .pill-neutral { background: #F5F5F4; color: #57534E; box-shadow: inset 0 0 0 1px rgba(120,113,108,0.18); }
+    .dot { width: .375rem; height: .375rem; border-radius: 9999px; background: currentColor; display: inline-block; }
+
+    @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .fade-up { animation: fade-up .45s cubic-bezier(.2,.7,.2,1) both; }
+    @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
+    .scanning::after {
+      content: ""; position: absolute; left: 0; right: 0; height: 2px; background: #059669;
+      box-shadow: 0 0 0 1px rgba(5,150,105,.15), 0 0 24px 6px rgba(16,185,129,.25); animation: scan 1.4s ease-in-out infinite alternate;
+    }
+
+    ::selection { background: #D1FAE5; }
+
+    /* ---------- Liquid glass ---------- */
+    .liquid-glass {
+      position: relative;
+      isolation: isolate;
+      background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.32));
+      -webkit-backdrop-filter: blur(18px) saturate(190%) brightness(1.06);
+      backdrop-filter: blur(18px) saturate(190%) brightness(1.06);
+      box-shadow:
+        inset 0 1px 0.5px rgba(255,255,255,0.95),   /* top specular rim */
+        inset 0 -1px 1px rgba(255,255,255,0.35),    /* bottom inner glow */
+        inset 0 0 0 1px rgba(255,255,255,0.45),     /* glass edge */
+        0 0 0 0.5px rgba(28,25,23,0.10),            /* hairline outside */
+        0 12px 32px -10px rgba(28,25,23,0.28),
+        0 2px 8px rgba(28,25,23,0.06);
+    }
+    /* Refraction: only Chromium renders SVG filters in backdrop-filter, so the
+       app adds .refract after detecting it; everyone else keeps the rule above. */
+    .liquid-glass.refract { backdrop-filter: url(#liquid-refraction) blur(14px) saturate(190%) brightness(1.06); }
+    .liquid-glass::before {
+      /* curved highlight sweeping across the top half */
+      content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+      background:
+        radial-gradient(120% 70% at 50% -20%, rgba(255,255,255,0.75), rgba(255,255,255,0) 60%),
+        linear-gradient(90deg, rgba(255,255,255,0.35), rgba(255,255,255,0) 18%, rgba(255,255,255,0) 82%, rgba(255,255,255,0.35));
+      opacity: .7;
+    }
+    .liquid-pill {
+      background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.7));
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,1),
+        inset 0 -1px 1px rgba(28,25,23,0.06),
+        0 0 0 0.5px rgba(28,25,23,0.08),
+        0 4px 12px -4px rgba(28,25,23,0.25);
+      transition: transform .45s cubic-bezier(.3,1.4,.5,1), width .45s cubic-bezier(.3,1.4,.5,1);
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .liquid-glass { background: rgba(255,255,255,0.96); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body>
+  <!-- Subtle lens distortion used by .liquid-glass.refract -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="liquid-refraction" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.02" numOctaves="2" seed="7" result="noise" />
+      <feGaussianBlur in="noise" stdDeviation="2" result="soft" />
+      <feDisplacementMap in="SourceGraphic" in2="soft" scale="18" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
   <div id="root"></div>
-<script type="module" src="/index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
 </body>
 </html>

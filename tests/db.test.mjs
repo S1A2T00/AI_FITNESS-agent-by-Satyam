@@ -58,6 +58,22 @@ test("analyses are stored and isolated per user", { skip }, async () => {
   assert.equal((await db.listAnalyses(alice)).length, 0);
 });
 
+test("posture findings are stored in details and returned", { skip }, async () => {
+  const id = randomUUID();
+  const posture = [{ issue: "forward_head", severity: "moderate", side: "none", note: "" }];
+  const saved = await db.insertAnalysis(alice, {
+    id, type: "BODY_POSE", summary: "s", metrics: [], recommendations: [], disclaimer: "", details: { posture },
+  });
+  assert.deepEqual(saved.posture, posture);
+  const [listed] = await db.listAnalyses(alice);
+  assert.deepEqual(listed.posture, posture);
+  await db.deleteAnalysis(alice, id);
+
+  const other = await db.insertAnalysis(alice, { id: randomUUID(), type: "MEDICINE", summary: "s" });
+  assert.equal(other.posture, undefined, "non-posture analyses carry no posture field");
+  await db.deleteAnalysis(alice, other.id);
+});
+
 test("coach messages keep order, limit to newest, and clear", { skip }, async () => {
   await db.insertCoachExchange(alice, "q1", "a1");
   await db.insertCoachExchange(alice, "q2", "a2");

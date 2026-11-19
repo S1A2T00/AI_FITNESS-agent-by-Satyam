@@ -73,6 +73,11 @@ const migrations = [
       CREATE INDEX coach_messages_user_idx ON coach_messages (user_uid, id);
     `,
   },
+  {
+    version: 2,
+    name: "analysis details (structured posture findings)",
+    sql: `ALTER TABLE analyses ADD COLUMN details JSONB NOT NULL DEFAULT '{}';`,
+  },
 ];
 
 export async function migrate() {
@@ -154,13 +159,14 @@ function toAnalysis(row) {
     disclaimer: row.disclaimer,
     rawOutput: row.raw_output ?? undefined,
     timestamp: row.created_at.toISOString(),
+    ...(Array.isArray(row.details?.posture) ? { posture: row.details.posture } : {}),
   };
 }
 
 export async function insertAnalysis(uid, a) {
   const { rows } = await pool.query(
-    `INSERT INTO analyses (id, user_uid, type, summary, metrics, recommendations, disclaimer, raw_output)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO analyses (id, user_uid, type, summary, metrics, recommendations, disclaimer, raw_output, details)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
     [
       a.id,
@@ -171,6 +177,7 @@ export async function insertAnalysis(uid, a) {
       JSON.stringify(Array.isArray(a.recommendations) ? a.recommendations : []),
       String(a.disclaimer ?? ""),
       a.rawOutput ?? null,
+      JSON.stringify(a.details && typeof a.details === "object" ? a.details : {}),
     ]
   );
   return toAnalysis(rows[0]);

@@ -3,13 +3,52 @@ import React, { useState, useRef } from 'react';
 import { performAnalysis } from '../services/geminiService';
 import { AnalysisType, AnalysisResult } from '../types';
 import { MEDICAL_DISCLAIMER } from '../constants';
+import { statusLabel } from './Dashboard';
+import { PostureViewer } from '../components/posture/PostureViewer';
 
 interface AnalysisHubProps {
   onAnalysisComplete: (result: AnalysisResult) => void;
 }
 
+const UploadSlot: React.FC<{
+  label: string;
+  hint: string;
+  image: string | null;
+  scanning: boolean;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  tall?: boolean;
+}> = ({ label, hint, image, scanning, inputRef, onChange, tall }) => (
+  <div>
+    <p className="text-sm font-medium text-stone-700 mb-2">{label}</p>
+    <button
+      type="button"
+      onClick={() => inputRef.current?.click()}
+      className={`relative w-full ${tall ? 'aspect-[3/4]' : 'min-h-[240px]'} rounded-xl overflow-hidden flex items-center justify-center transition-colors ${
+        image ? 'border border-line bg-stone-50' : 'border border-dashed border-stone-300 hover:border-stone-400 hover:bg-stone-50'
+      } ${scanning ? 'scanning' : ''}`}
+    >
+      <input type="file" ref={inputRef} className="hidden" onChange={onChange} accept="image/jpeg,image/png,image/webp" />
+      {image ? (
+        <>
+          <img src={image} className={tall ? 'w-full h-full object-cover' : 'max-h-64 rounded-lg'} alt={label} />
+          {!scanning && <span className="absolute top-2.5 right-2.5 btn btn-secondary !h-7 !px-2.5 text-xs">Replace</span>}
+        </>
+      ) : (
+        <span className="text-center px-6">
+          <span className="inline-flex w-10 h-10 rounded-full bg-stone-100 text-stone-500 items-center justify-center">
+            <i className="fas fa-arrow-up-from-bracket text-sm" />
+          </span>
+          <span className="block text-sm font-medium mt-3">{hint}</span>
+          <span className="block text-xs text-stone-400 mt-1">JPG, PNG or WEBP</span>
+        </span>
+      )}
+    </button>
+  </div>
+);
+
 export const AnalysisHub: React.FC<AnalysisHubProps> = ({ onAnalysisComplete }) => {
-  const [activeType, setActiveType] = useState<AnalysisType>('BODY_POSE');
+  const [activeType, setActiveType] = useState<AnalysisType>('MEDICAL_REPORT');
   const [previews, setPreviews] = useState<{ [key: string]: string | null }>({
     main: null,
     front: null,
@@ -79,214 +118,132 @@ export const AnalysisHub: React.FC<AnalysisHubProps> = ({ onAnalysisComplete }) 
     return previews.main;
   };
 
+  const TYPES: { id: AnalysisType; title: string; desc: string; icon: string }[] = [
+    { id: 'MEDICAL_REPORT', title: 'Lab report', desc: 'Blood work, panels and medical records', icon: 'fa-flask-vial' },
+    { id: 'BODY_POSE', title: 'Posture', desc: 'Front and side photos of your stance', icon: 'fa-person' },
+    { id: 'MEDICINE', title: 'Medication', desc: 'Prescriptions and medicine packaging', icon: 'fa-capsules' },
+  ];
+  const current = TYPES.find((t) => t.id === activeType)!;
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <header>
-        <h1 className="text-3xl font-extrabold text-slate-900">Health Intelligence Analyzer</h1>
-        <p className="text-slate-500 mt-1">Select an analysis type and upload relevant media.</p>
+    <div className="space-y-6">
+      <header className="fade-up">
+        <h1 className="text-[28px] font-semibold tracking-tight">New analysis</h1>
+        <p className="text-stone-500 mt-1">Upload a clear photo and the AI explains what it finds in plain language.</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Selection Sidebar */}
-        <div className="lg:col-span-4 space-y-4">
-          <div 
-            onClick={() => resetPreviews('BODY_POSE')}
-            className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 ${activeType === 'BODY_POSE' ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white'}`}
-          >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activeType === 'BODY_POSE' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-              <i className="fas fa-person-running text-xl"></i>
-            </div>
-            <div>
-              <p className="font-bold text-slate-900">Physique & Posture</p>
-              <p className="text-xs text-slate-500">Front & Side view analysis.</p>
-            </div>
-          </div>
-
-          <div 
-            onClick={() => resetPreviews('MEDICAL_REPORT')}
-            className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 ${activeType === 'MEDICAL_REPORT' ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-slate-200 bg-white'}`}
-          >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activeType === 'MEDICAL_REPORT' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-              <i className="fas fa-file-medical text-xl"></i>
-            </div>
-            <div>
-              <p className="font-bold text-slate-900">Lab & Medical Reports</p>
-              <p className="text-xs text-slate-500">Analyze blood work & records.</p>
-            </div>
-          </div>
-
-          <div 
-            onClick={() => resetPreviews('MEDICINE')}
-            className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 ${activeType === 'MEDICINE' ? 'border-amber-500 bg-amber-50 shadow-sm' : 'border-slate-200 bg-white'}`}
-          >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activeType === 'MEDICINE' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-              <i className="fas fa-prescription text-xl"></i>
-            </div>
-            <div>
-              <p className="font-bold text-slate-900">Meds & Prescription</p>
-              <p className="text-xs text-slate-500">Explain medication & usage.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Upload & Result Area */}
-        <div className="lg:col-span-8 space-y-6">
-          {!result && (
-            <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <i className={`fas ${activeType === 'BODY_POSE' ? 'fa-camera' : 'fa-upload'} text-blue-500`}></i>
-                {activeType === 'BODY_POSE' ? 'Posture Capture' : 'Document Upload'}
-              </h3>
-
-              {activeType === 'BODY_POSE' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  {/* Front View */}
-                  <div className="space-y-3">
-                    <p className="text-sm font-semibold text-slate-600">1. Front View</p>
-                    <div 
-                      onClick={() => frontInputRef.current?.click()}
-                      className={`relative aspect-[3/4] rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden ${previews.front ? 'border-blue-500' : 'border-slate-200 hover:border-blue-300'}`}
-                    >
-                      <input type="file" ref={frontInputRef} className="hidden" onChange={handleFileChange('front')} accept="image/*" />
-                      {previews.front ? (
-                        <img src={previews.front} className="w-full h-full object-cover" alt="Front view" />
-                      ) : (
-                        <div className="text-center p-4">
-                          <i className="fas fa-user text-3xl text-slate-300 mb-2"></i>
-                          <p className="text-xs text-slate-400 font-medium">Click to upload front view</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Side View */}
-                  <div className="space-y-3">
-                    <p className="text-sm font-semibold text-slate-600">2. Side View</p>
-                    <div 
-                      onClick={() => sideInputRef.current?.click()}
-                      className={`relative aspect-[3/4] rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden ${previews.side ? 'border-blue-500' : 'border-slate-200 hover:border-blue-300'}`}
-                    >
-                      <input type="file" ref={sideInputRef} className="hidden" onChange={handleFileChange('side')} accept="image/*" />
-                      {previews.side ? (
-                        <img src={previews.side} className="w-full h-full object-cover" alt="Side view" />
-                      ) : (
-                        <div className="text-center p-4">
-                          <i className="fas fa-user-tag text-3xl text-slate-300 mb-2"></i>
-                          <p className="text-xs text-slate-400 font-medium">Click to upload side view</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`bg-slate-50 border-2 border-dashed rounded-3xl p-12 text-center cursor-pointer transition-all mb-8 ${previews.main ? 'border-blue-500' : 'border-slate-200 hover:border-blue-300'}`}
-                >
-                  <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange('main')} accept="image/*" />
-                  {previews.main ? (
-                    <img src={previews.main} className="mx-auto max-h-64 rounded-xl shadow-md border border-slate-100" alt="Main preview" />
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm text-slate-400">
-                        <i className="fas fa-file-arrow-up text-2xl"></i>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-800">Upload {activeType === 'MEDICAL_REPORT' ? 'Report' : 'Prescription'}</h4>
-                        <p className="text-slate-500 text-xs mt-1">Tap to select a clear image from your gallery.</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex flex-col items-center">
-                <button 
-                  onClick={runAnalysis}
-                  disabled={isAnalyzing || !isReadyToAnalyze()}
-                  className="w-full sm:w-auto px-12 py-3.5 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-lg shadow-blue-200"
-                >
-                  {isAnalyzing ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-wand-magic-sparkles"></i>}
-                  {isAnalyzing ? 'Processing...' : 'Run Intelligence Analysis'}
-                </button>
-                {!isReadyToAnalyze() && (
-                  <p className="text-[10px] text-slate-400 mt-3 italic">
-                    {activeType === 'BODY_POSE' ? 'Both front and side views are required for accurate analysis.' : 'Please upload a clear image to continue.'}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-rose-50 border border-rose-100 text-rose-700 p-4 rounded-xl flex items-center gap-3">
-              <i className="fas fa-circle-xmark"></i>
-              <p className="text-sm font-medium">{error}</p>
-            </div>
-          )}
-
-          {result && (
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-in slide-in-from-top-4 duration-500">
-              <div className="p-6 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-tighter">INTELLIGENCE REPORT</span>
-                  <p className="text-slate-400 text-[10px] font-medium">{new Date(result.timestamp).toLocaleString()}</p>
-                </div>
-                <button onClick={() => setResult(null)} className="text-slate-400 hover:text-slate-600"><i className="fas fa-xmark text-xl"></i></button>
-              </div>
-
-              <div className="p-6 md:p-8 space-y-8">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-2">Analysis Summary</h2>
-                  <p className="text-slate-600 leading-relaxed text-sm md:text-base">{result.summary}</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {result.metrics.map((m, idx) => (
-                    <div key={idx} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50">
-                      <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">{m.label}</p>
-                      <p className="text-xl font-bold text-slate-800 mt-1">{m.value}</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${
-                          m.status === 'normal' ? 'bg-emerald-500' : 
-                          m.status === 'warning' ? 'bg-amber-500' : 
-                          m.status === 'critical' ? 'bg-rose-500' : 'bg-slate-400'
-                        }`}></span>
-                        <span className="text-[10px] font-bold uppercase text-slate-500">{m.status}</span>
-                      </div>
-                      {m.description && <p className="text-[10px] text-slate-400 mt-2 italic">"{m.description}"</p>}
-                    </div>
-                  ))}
-                </div>
-
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <i className="fas fa-lightbulb text-amber-500"></i>
-                    AI Recommendations
-                  </h2>
-                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {result.recommendations.map((rec, idx) => (
-                      <li key={idx} className="flex items-start gap-3 p-4 bg-blue-50/30 rounded-2xl text-slate-700 text-sm border border-blue-50">
-                        <i className="fas fa-circle-check text-blue-500 mt-0.5"></i>
-                        {rec}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="pt-6 border-t border-slate-100">
-                  <div className="bg-amber-50 rounded-2xl p-4 flex gap-4 items-start border border-amber-100">
-                    <i className="fas fa-triangle-exclamation text-amber-600 mt-1"></i>
-                    <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
-                      {MEDICAL_DISCLAIMER}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Type selector */}
+      <div role="tablist" className="inline-flex p-1 rounded-xl bg-stone-100 fade-up">
+        {TYPES.map((t) => {
+          const active = activeType === t.id;
+          return (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={active}
+              onClick={() => resetPreviews(t.id)}
+              className={`h-9 px-3 sm:px-4 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+                active ? 'bg-white text-stone-900 shadow-card' : 'text-stone-500 hover:text-stone-900'
+              }`}
+            >
+              <i className={`fas ${t.icon} text-xs`} />{t.title}
+            </button>
+          );
+        })}
       </div>
+
+      {!result && (
+        <section className="card p-5 sm:p-6 fade-up">
+          <p className="text-sm text-stone-500 mb-5">{current.desc}</p>
+          {activeType === 'BODY_POSE' ? (
+            <div className="grid grid-cols-2 gap-4">
+              <UploadSlot label="Front view" hint="Upload front photo" image={previews.front} scanning={isAnalyzing} inputRef={frontInputRef} onChange={handleFileChange('front')} tall />
+              <UploadSlot label="Side view" hint="Upload side photo" image={previews.side} scanning={isAnalyzing} inputRef={sideInputRef} onChange={handleFileChange('side')} tall />
+            </div>
+          ) : (
+            <UploadSlot
+              label={activeType === 'MEDICAL_REPORT' ? 'Report' : 'Prescription or packaging'}
+              hint={`Upload ${activeType === 'MEDICAL_REPORT' ? 'a report' : 'a prescription'}`}
+              image={previews.main}
+              scanning={isAnalyzing}
+              inputRef={fileInputRef}
+              onChange={handleFileChange('main')}
+            />
+          )}
+
+          <div className="mt-6 pt-5 border-t border-line flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-xs text-stone-500 flex items-center gap-2">
+              <i className="fas fa-lock text-[10px]" /> Photos are used for this analysis only and aren't stored.
+            </p>
+            <button onClick={runAnalysis} disabled={isAnalyzing || !isReadyToAnalyze()} className="btn btn-primary">
+              {isAnalyzing ? <><i className="fas fa-circle-notch fa-spin text-xs" /> Analyzing…</> : 'Analyze'}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {error && (
+        <div className="rounded-xl bg-red-50 text-red-700 ring-1 ring-red-600/15 p-4 text-sm flex items-center gap-3">
+          <i className="fas fa-circle-exclamation" />{error}
+        </div>
+      )}
+
+      {result && (
+        <article className="card fade-up">
+          <div className="flex items-center justify-between px-6 h-14 border-b border-line">
+            <div className="flex items-center gap-3">
+              <h2 className="font-semibold">Results</h2>
+              <span className="text-xs text-stone-400">{new Date(result.timestamp).toLocaleString()}</span>
+            </div>
+            <button onClick={() => setResult(null)} className="btn btn-secondary !h-8 text-xs">New analysis</button>
+          </div>
+
+          <div className="p-6 space-y-8">
+            <p className="text-[15px] leading-relaxed text-stone-700 max-w-3xl">{result.summary}</p>
+
+            {result.type === 'BODY_POSE' && result.posture && (
+              <div>
+                <h3 className="text-sm font-medium text-stone-500 mb-3">Your posture in 3D</h3>
+                <PostureViewer findings={result.posture} />
+              </div>
+            )}
+
+            <div>
+              <h3 className="text-sm font-medium text-stone-500 mb-3">Measurements</h3>
+              <div className="rounded-xl border border-line divide-y divide-line">
+                {result.metrics.map((m, idx) => (
+                  <div key={idx} className="px-4 py-3 grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_10rem_7rem] items-center gap-x-4 gap-y-1">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{m.label}</p>
+                      {m.description && <p className="text-xs text-stone-500 mt-0.5">{m.description}</p>}
+                    </div>
+                    <p className="text-sm tnum sm:text-right font-medium">{m.value}</p>
+                    <span className={`pill pill-${m.status} justify-self-start sm:justify-self-end col-span-2 sm:col-span-1`}>
+                      <span className="dot" />{statusLabel[m.status] ?? m.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-stone-500 mb-3">Recommendations</h3>
+              <ol className="space-y-2.5">
+                {result.recommendations.map((rec, idx) => (
+                  <li key={idx} className="flex gap-3 text-sm text-stone-700">
+                    <span className="w-5 h-5 rounded-full bg-stone-100 text-stone-600 text-xs flex items-center justify-center shrink-0 tnum">{idx + 1}</span>
+                    {rec}
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            <p className="text-xs text-stone-500 leading-relaxed border-t border-line pt-5">
+              <i className="fas fa-circle-info mr-1.5" />{MEDICAL_DISCLAIMER}
+            </p>
+          </div>
+        </article>
+      )}
     </div>
   );
 };
