@@ -4,6 +4,7 @@ import { performAnalysis } from '../services/geminiService';
 import { AnalysisType, AnalysisResult } from '../types';
 import { MEDICAL_DISCLAIMER } from '../constants';
 import { statusLabel } from './Dashboard';
+import { PostureViewer } from '../components/posture/PostureViewer';
 
 interface AnalysisHubProps {
   onAnalysisComplete: (result: AnalysisResult) => void;
@@ -199,6 +200,13 @@ export const AnalysisHub: React.FC<AnalysisHubProps> = ({ onAnalysisComplete }) 
 
           <div className="p-6 space-y-8">
             <p className="text-[15px] leading-relaxed text-stone-700 max-w-3xl">{result.summary}</p>
+
+            {result.type === 'BODY_POSE' && result.posture && (
+              <div>
+                <h3 className="text-sm font-medium text-stone-500 mb-3">Your posture in 3D</h3>
+                <PostureViewer findings={result.posture} />
+              </div>
+            )}
 
             <div>
               <h3 className="text-sm font-medium text-stone-500 mb-3">Measurements</h3>

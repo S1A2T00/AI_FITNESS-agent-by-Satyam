@@ -16,6 +16,7 @@ import {
   webConfig,
 } from "./auth.mjs";
 import * as db from "./db.mjs";
+import { POSTURE_PROMPT, postureFindingsSchema, sanitizeFindings } from "./posture.mjs";
 
 const apiKey = process.env.GEMINI_API_KEY?.trim();
 
@@ -102,6 +103,7 @@ const analysisSchema = {
       items: { type: Type.STRING },
     },
     disclaimer: { type: Type.STRING },
+    postureFindings: postureFindingsSchema,
   },
   required: ["summary", "metrics", "recommendations", "disclaimer"],
 };
@@ -156,6 +158,7 @@ async function analyze(user, body) {
           text:
             `${SYSTEM_INSTRUCTIONS.HEALTH_AGENT}\n\n` +
             `Task: Perform a ${body.type} analysis. ` +
+            `${POSTURE_PROMPT}\n` +
             String(body.text || "").slice(0, 20000),
         },
         ...imageParts,
@@ -169,11 +172,13 @@ async function analyze(user, body) {
 
   const result = JSON.parse(response.text);
 
+  const { postureFindings, ...rest } = result;
   return db.insertAnalysis(user.uid, {
-    ...result,
+    ...rest,
     id: randomUUID(),
     type: body.type,
     rawOutput: response.text,
+    details: body.type === "BODY_POSE" ? { posture: sanitizeFindings(postureFindings) } : {},
   });
 }
 

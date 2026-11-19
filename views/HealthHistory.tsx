@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnalysisResult, AnalysisType } from '../types';
 import { TYPE_META, TypeIcon, statusLabel } from './Dashboard';
+import { PostureViewer } from '../components/posture/PostureViewer';
 
 interface HealthHistoryProps {
   history: AnalysisResult[];
@@ -75,6 +76,13 @@ export const HealthHistory: React.FC<HealthHistoryProps> = ({ history, onDelete 
 
                 {expanded && (
                   <div className="px-5 pb-5 sm:pl-[4.25rem] space-y-4">
+                    {item.type === 'BODY_POSE' && (item.posture ? (
+                      <PostureViewer findings={item.posture} />
+                    ) : (
+                      <p className="text-xs text-stone-500 rounded-lg bg-stone-50 border border-line px-3 py-2">
+                        <i className="fas fa-cube mr-1.5" />Run a new posture analysis to see it on the 3D model.
+                      </p>
+                    ))}
                     <div className="rounded-xl border border-line divide-y divide-line">
                       {item.metrics.map((m, idx) => (
                         <div key={idx} className="flex items-center justify-between gap-4 px-4 py-2.5 text-sm">
