@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const NavItem: React.FC<{ to: string; icon: string; label: string }> = ({ to, icon, label }) => {
   const location = useLocation();
@@ -22,6 +23,10 @@ const NavItem: React.FC<{ to: string; icon: string; label: string }> = ({ to, ic
 };
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, role, signOut } = useAuth();
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'User';
+  const initials = displayName.slice(0, 1).toUpperCase();
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
       {/* Sidebar - Hidden on mobile */}
@@ -39,15 +44,23 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <NavItem to="/medicine" icon="fa-pills" label="Meds & Rx" />
           <NavItem to="/coach" icon="fa-user-doctor" label="AI Coach" />
           <NavItem to="/history" icon="fa-clock-rotate-left" label="Health History" />
+          {role === 'admin' && <NavItem to="/admin" icon="fa-user-shield" label="Admin" />}
         </nav>
         
         <div className="mt-auto pt-6 border-t border-slate-200">
           <div className="flex items-center gap-3 px-2">
-            <img src="https://picsum.photos/40/40" className="w-10 h-10 rounded-full border border-slate-200" alt="Profile" />
-            <div>
-              <p className="text-sm font-semibold">User Account</p>
-              <p className="text-xs text-slate-500">Premium Plan</p>
+            {user?.photoURL ? (
+              <img src={user.photoURL} referrerPolicy="no-referrer" className="w-10 h-10 rounded-full border border-slate-200" alt="Profile" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center">{initials}</div>
+            )}
+            <div className="min-w-0 flex-grow">
+              <p className="text-sm font-semibold truncate" title={user?.email || ''}>{displayName}</p>
+              <p className="text-xs text-slate-500 capitalize">{role}</p>
             </div>
+            <button onClick={signOut} title="Sign out" className="text-slate-400 hover:text-red-600 p-2">
+              <i className="fas fa-right-from-bracket"></i>
+            </button>
           </div>
         </div>
       </aside>
@@ -60,7 +73,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
           <span className="font-bold">Vitalis AI</span>
         </div>
-        <button className="text-slate-600 p-2"><i className="fas fa-bars text-xl"></i></button>
+        <button onClick={signOut} title="Sign out" className="text-slate-600 p-2"><i className="fas fa-right-from-bracket text-xl"></i></button>
       </header>
 
       {/* Main Content */}

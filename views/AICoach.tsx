@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { chatWithCoach } from '../services/geminiService';
+import { chatWithCoach, fetchCoachMessages, clearCoachMessages } from '../services/geminiService';
 import { ChatMessage, AnalysisResult } from '../types';
 
 
@@ -34,15 +34,32 @@ const coachMarkdownComponents = {
   img: ({ alt }) => <span className="italic text-slate-500">{alt || 'Image'}</span>,
 } satisfies Components;
 
-export const AICoach: React.FC<{ history: AnalysisResult[] }> = ({ history }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: "Hi there! I'm your Vitalis AI Coach. How can I help you today? You can ask about your recent analyses or get advice on your health journey.",
-      timestamp: new Date()
+const WELCOME: ChatMessage = {
+  id: 'welcome',
+  role: 'assistant',
+  content: "Hi there! I'm your Vitalis AI Coach. How can I help you today? You can ask about your recent analyses or get advice on your health journey.",
+  timestamp: new Date()
+};
+
+export const AICoach: React.FC<{ history: AnalysisResult[] }> = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
+
+  // Restore the saved conversation from the database.
+  useEffect(() => {
+    fetchCoachMessages()
+      .then((saved) => setMessages([WELCOME, ...saved]))
+      .catch((e) => console.error('Failed to load chat history', e));
+  }, []);
+
+  const handleClear = async () => {
+    if (!confirm('Delete this conversation? This cannot be undone.')) return;
+    try {
+      await clearCoachMessages();
+      setMessages([WELCOME]);
+    } catch (e) {
+      alert((e as Error).message);
     }
-  ]);
+  };
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -71,15 +88,7 @@ export const AICoach: React.FC<{ history: AnalysisResult[] }> = ({ history }) =>
     setIsLoading(true);
 
     try {
-      // Build context based on actual analysis history
-      let healthContext = "No prior health analyses performed.";
-      if (history.length > 0) {
-        healthContext = history.map(item => 
-          `- ${item.type} (${item.timestamp.toLocaleDateString()}): ${item.summary}`
-        ).join('\n');
-      }
-      
-      const reply = await chatWithCoach(input, messages.map(m => ({ role: m.role, content: m.content })), healthContext);
+      const reply = await chatWithCoach(userMessage.content);
       
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -94,7 +103,7 @@ export const AICoach: React.FC<{ history: AnalysisResult[] }> = ({ history }) =>
       setMessages(prev => [...prev, {
         id: 'err',
         role: 'assistant',
-        content: "Sorry, I encountered an error connecting to my core intelligence. Please check your API key.",
+        content: `Sorry, something went wrong: ${(err as Error).message}`,
         timestamp: new Date()
       }]);
     } finally {
@@ -116,7 +125,7 @@ export const AICoach: React.FC<{ history: AnalysisResult[] }> = ({ history }) =>
             <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Online • Ready to help</p>
           </div>
         </div>
-        <button className="text-slate-400 hover:text-slate-600"><i className="fas fa-ellipsis-vertical text-lg"></i></button>
+        <button onClick={handleClear} title="Clear conversation" className="text-slate-400 hover:text-red-600"><i className="fas fa-trash-can text-lg"></i></button>
       </div>
 
       {/* Messages */}
