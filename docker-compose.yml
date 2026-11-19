@@ -1,6 +1,7 @@
-# Runs the app and PostgreSQL together. Usage:
-#   cp .env.example .env.local   (fill in Gemini + Firebase values)
-#   docker compose up --build    → http://localhost:3001
+# App + PostgreSQL.
+#   docker compose up -d --build     build from source
+#   docker compose pull && docker compose up -d   use the image CI pushed
+# Config comes from .env (copy .env.example).
 services:
   db:
     image: postgres:17-alpine
@@ -12,26 +13,28 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      # For local `npm run dev:api`. Change POSTGRES_HOST_PORT if 5432 is taken.
-      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"   # localhost only, for npm run dev:api
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vitalis -d vitalis"]
-      interval: 3s
+      interval: 5s
       retries: 20
 
   app:
+    image: ${APP_IMAGE:-ghcr.io/s1a2t00/ai_fitness-agent-by-satyam:latest}
     build: .
     restart: unless-stopped
-    env_file: .env.local
+    env_file: .env
     environment:
-      # Overrides the localhost URL in .env.local with the compose service name.
       DATABASE_URL: postgres://vitalis:${POSTGRES_PASSWORD:-vitalis}@db:5432/vitalis
       DATABASE_SSL: "false"
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "3001:3001"
+      - "${APP_PORT:-3001}:3001"
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
 
 volumes:
   pgdata:

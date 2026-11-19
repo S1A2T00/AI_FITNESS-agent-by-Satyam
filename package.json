@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:api": "node --env-file-if-exists=.env.local server/index.mjs",
+    "dev:api": "node --env-file-if-exists=.env server/index.mjs",
     "build": "vite build",
-    "start": "node --env-file-if-exists=.env.local server/index.mjs",
+    "start": "node --env-file-if-exists=.env server/index.mjs",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit -p .",

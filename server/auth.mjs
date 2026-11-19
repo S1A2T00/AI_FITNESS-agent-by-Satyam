@@ -32,7 +32,7 @@ function loadServiceAccount() {
 const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
 if (!projectId) {
   throw new Error(
-    "FIREBASE_PROJECT_ID is missing. Configure .env.local or the container environment."
+    "FIREBASE_PROJECT_ID is missing. Configure .env or the container environment."
   );
 }
 

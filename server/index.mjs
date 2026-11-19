@@ -21,7 +21,7 @@ const apiKey = process.env.GEMINI_API_KEY?.trim();
 
 if (!apiKey) {
   throw new Error(
-    "GEMINI_API_KEY is missing. Configure .env.local or the container environment."
+    "GEMINI_API_KEY is missing. Configure .env or the container environment."
   );
 }
 

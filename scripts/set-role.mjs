@@ -1,4 +1,4 @@
-// Usage: node --env-file=.env.local scripts/set-role.mjs <email> <user|admin>
+// Usage: node --env-file=.env scripts/set-role.mjs <email> <user|admin>
 // Grants or removes the admin role via a Firebase custom claim.
 import { readFileSync } from "node:fs";
 import { initializeApp, cert } from "firebase-admin/app";
@@ -6,7 +6,7 @@ import { getAuth } from "firebase-admin/auth";
 
 const [email, role] = process.argv.slice(2);
 if (!email || !["user", "admin"].includes(role)) {
-  console.error("Usage: node --env-file=.env.local scripts/set-role.mjs <email> <user|admin>");
+  console.error("Usage: node --env-file=.env scripts/set-role.mjs <email> <user|admin>");
   process.exit(1);
 }
 
