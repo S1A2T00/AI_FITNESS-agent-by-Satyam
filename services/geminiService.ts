@@ -1,5 +1,6 @@
 import type { AnalysisType, AnalysisResult, ChatMessage } from "../types";
 import { getIdToken } from "./firebase";
+import { apiUrl } from "./apiBase";
 
 export async function apiFetch<T>(
   endpoint: string,
@@ -7,7 +8,7 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const send = async (forceRefresh: boolean) => {
     const token = await getIdToken(forceRefresh);
-    return fetch(endpoint, {
+    return fetch(apiUrl(endpoint), {
       method: init.method || (init.body === undefined ? "GET" : "POST"),
       headers: {
         ...(init.body === undefined ? {} : { "Content-Type": "application/json" }),

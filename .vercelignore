@@ -1,0 +1,16 @@
+# Only the frontend goes to Vercel. Never upload secrets or the backend.
+.env
+.env.*
+*.pem
+*firebase-adminsdk*.json
+*serviceAccount*.json
+server/
+tests/
+scripts/
+deploy/
+.github/
+Dockerfile
+docker-compose*.yml
+render.yaml
+node_modules/
+dist/
