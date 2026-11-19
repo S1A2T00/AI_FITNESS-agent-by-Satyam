@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { FullPageSpinner } from "../components/ProtectedRoute";
-import { DnaHelix } from "../components/Three3D";
+import { Sculpture } from "../components/Three3D";
+import { Logo } from "../components/Logo";
 
 type Mode = "signin" | "signup" | "reset";
 
@@ -60,121 +61,112 @@ export const Login: React.FC = () => {
     else run(() => resetPassword(email), "Password reset email sent. Check your inbox.");
   };
 
-  const title = { signin: "Welcome back", signup: "Create your account", reset: "Reset password" }[mode];
+  const title = { signin: "Sign in to Vitalis", signup: "Create your account", reset: "Reset your password" }[mode];
   const subtitle = {
-    signin: "Sign in to your health intelligence.",
-    signup: "Start tracking reports, posture and medication with AI.",
-    reset: "We'll email you a link to set a new password.",
+    signin: "Welcome back. Pick up where you left off.",
+    signup: "Understand your lab results, posture and medication in plain language.",
+    reset: "Enter your email and we'll send you a reset link.",
   }[mode];
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr]">
-      {/* Left: brand + 3D helix */}
-      <section className="relative hidden lg:flex flex-col justify-between p-12 overflow-hidden">
-        <div className="flex items-center gap-3 rise">
-          <Logo />
-          <span className="font-display text-xl font-bold tracking-tight">Vitalis<span className="text-vital">.</span>AI</span>
-        </div>
+    <div className="min-h-screen grid lg:grid-cols-2 bg-white">
+      {/* Form */}
+      <section className="flex flex-col px-6 py-8 sm:px-12 lg:px-16">
+        <Logo />
 
-        <DnaHelix className="absolute inset-y-0 right-0 w-3/4" />
+        <div className="flex-1 flex items-center">
+          <div className="w-full max-w-sm mx-auto lg:mx-0 py-12 fade-up">
+            <h1 className="text-[28px] leading-tight font-semibold tracking-tight">{title}</h1>
+            <p className="text-stone-500 mt-2 text-[15px]">{subtitle}</p>
 
-        <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-ink-950 via-ink-950/80 to-transparent pointer-events-none" />
-        <div className="relative max-w-md rise rise-2">
-          <p className="eyebrow mb-4">Holistic health intelligence</p>
-          <h1 className="font-display text-5xl xl:text-6xl font-extrabold leading-[1.02]">
-            Read your body<br />like <span className="text-vital glow-text">data.</span>
-          </h1>
-          <p className="mt-5 text-mist-300 text-lg leading-relaxed">
-            Lab reports, posture scans and prescriptions, decoded by AI into plain-language insight.
-          </p>
-          <div className="mt-8 flex gap-6 font-mono text-xs text-mist-500">
-            <span><span className="dot dot-normal mr-2" />Lab reports</span>
-            <span><span className="dot dot-warning mr-2" />Posture</span>
-            <span><span className="dot dot-critical mr-2" />Medication</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Right: auth card */}
-      <section className="relative flex flex-col items-center justify-center p-5 sm:p-10">
-        <div className="lg:hidden w-full max-w-md h-48 sm:h-56 -mb-6">
-          <DnaHelix className="h-full" />
-        </div>
-
-        <div className="relative w-full max-w-md panel p-7 sm:p-9 rise rise-1">
-          <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <Logo />
-            <span className="font-display text-lg font-bold">Vitalis<span className="text-vital">.</span>AI</span>
-          </div>
-
-          <p className="eyebrow">{mode === "signup" ? "New account" : mode === "reset" ? "Recovery" : "Secure sign-in"}</p>
-          <h2 className="font-display text-3xl font-bold mt-2">{title}</h2>
-          <p className="text-mist-500 mt-1 text-sm">{subtitle}</p>
-
-          {configError && (
-            <p className="mt-5 text-sm bg-amberx/10 text-amberx border border-amberx/25 rounded-xl p-3">{configError}</p>
-          )}
-
-          <form onSubmit={onSubmit} className="mt-7 space-y-3.5">
-            {mode === "signup" && (
-              <input className="field" placeholder="Full name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+            {configError && (
+              <p className="mt-6 text-sm rounded-xl bg-amber-50 text-amber-800 ring-1 ring-amber-600/20 p-3">{configError}</p>
             )}
-            <input className="field" type="email" placeholder="Email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+
             {mode !== "reset" && (
-              <input
-                className="field"
-                type="password"
-                placeholder="Password"
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                minLength={6}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            )}
-
-            {error && <p className="text-sm text-coral flex items-center gap-2"><i className="fas fa-circle-exclamation" />{error}</p>}
-            {info && <p className="text-sm text-vital flex items-center gap-2"><i className="fas fa-circle-check" />{info}</p>}
-
-            <button type="submit" disabled={busy || !!configError} className="btn-vital w-full !py-3.5">
-              {busy ? <i className="fas fa-circle-notch fa-spin" /> : { signin: "Sign in", signup: "Create account", reset: "Send reset link" }[mode]}
-              {!busy && <i className="fas fa-arrow-right text-sm" />}
-            </button>
-          </form>
-
-          {mode !== "reset" && (
-            <>
-              <div className="flex items-center gap-3 my-6 eyebrow !text-mist-700">
-                <div className="flex-grow h-px bg-mist-700/40" />or<div className="flex-grow h-px bg-mist-700/40" />
-              </div>
-              <button onClick={() => run(signInWithGoogle)} disabled={busy || !!configError} className="btn-ghost w-full disabled:opacity-40">
-                <i className="fab fa-google" /> Continue with Google
-              </button>
-            </>
-          )}
-
-          <div className="mt-7 text-sm text-center text-mist-500 space-y-2">
-            {mode === "signin" && (
               <>
-                <p><button className="text-mist-300 hover:text-vital transition-colors" onClick={() => setMode("reset")}>Forgot password?</button></p>
-                <p>New here? <button className="text-vital hover:underline underline-offset-4" onClick={() => setMode("signup")}>Create an account</button></p>
+                <button onClick={() => run(signInWithGoogle)} disabled={busy || !!configError} className="btn btn-secondary w-full mt-8 !h-11">
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.7z" />
+                    <path fill="#34A853" d="M12 24c3.2 0 6-1.1 7.9-2.9l-3.9-3c-1.1.7-2.4 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9H1.4v3.1A12 12 0 0 0 12 24z" />
+                    <path fill="#FBBC05" d="M5.4 14.4a7.2 7.2 0 0 1 0-4.7V6.6h-4a12 12 0 0 0 0 10.8l4-3z" />
+                    <path fill="#EA4335" d="M12 4.8c1.7 0 3.3.6 4.5 1.8l3.4-3.4A12 12 0 0 0 1.4 6.6l4 3.1C6.3 6.9 8.9 4.8 12 4.8z" />
+                  </svg>
+                  Continue with Google
+                </button>
+                <div className="flex items-center gap-3 my-6 text-xs text-stone-400">
+                  <div className="flex-grow h-px bg-stone-200" />or<div className="flex-grow h-px bg-stone-200" />
+                </div>
               </>
             )}
-            {mode !== "signin" && (
-              <p><button className="text-vital hover:underline underline-offset-4" onClick={() => setMode("signin")}>← Back to sign in</button></p>
-            )}
+
+            <form onSubmit={onSubmit} className={`space-y-4 ${mode === "reset" ? "mt-8" : ""}`}>
+              {mode === "signup" && (
+                <label className="block">
+                  <span className="text-sm font-medium text-stone-700">Full name</span>
+                  <input className="input mt-1.5" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+                </label>
+              )}
+              <label className="block">
+                <span className="text-sm font-medium text-stone-700">Email</span>
+                <input className="input mt-1.5" type="email" autoComplete="email" placeholder="you@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              </label>
+              {mode !== "reset" && (
+                <label className="block">
+                  <span className="flex items-center justify-between text-sm font-medium text-stone-700">
+                    Password
+                    {mode === "signin" && (
+                      <button type="button" className="text-stone-500 hover:text-stone-900 font-normal" onClick={() => setMode("reset")}>Forgot?</button>
+                    )}
+                  </span>
+                  <input
+                    className="input mt-1.5"
+                    type="password"
+                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                    minLength={6}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </label>
+              )}
+
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              {info && <p className="text-sm text-brand-700">{info}</p>}
+
+              <button type="submit" disabled={busy || !!configError} className="btn btn-primary w-full !h-11">
+                {busy ? <i className="fas fa-circle-notch fa-spin" /> : { signin: "Sign in", signup: "Create account", reset: "Send reset link" }[mode]}
+              </button>
+            </form>
+
+            <p className="mt-8 text-sm text-stone-500">
+              {mode === "signin" ? (
+                <>No account? <button className="text-stone-900 font-medium underline underline-offset-4 decoration-stone-300 hover:decoration-stone-900" onClick={() => setMode("signup")}>Create one</button></>
+              ) : (
+                <>Already have an account? <button className="text-stone-900 font-medium underline underline-offset-4 decoration-stone-300 hover:decoration-stone-900" onClick={() => setMode("signin")}>Sign in</button></>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <p className="text-xs text-stone-400">Vitalis gives AI insights, not medical diagnoses.</p>
+      </section>
+
+      {/* Visual */}
+      <section className="hidden lg:block p-3">
+        <div className="relative h-full rounded-[28px] overflow-hidden bg-gradient-to-b from-[#EEF6F1] to-[#E3EFE8]">
+          <Sculpture className="absolute inset-x-0 top-0 bottom-28" zoom={7.5} />
+          <div className="absolute left-10 right-10 bottom-10 flex items-end justify-between gap-8">
+            <p className="max-w-xs text-[22px] leading-snug font-medium tracking-tight text-stone-800">
+              Your lab reports, posture and prescriptions, explained clearly.
+            </p>
+            <div className="card px-4 py-3 shadow-lift text-sm">
+              <p className="text-stone-500 text-xs">LDL cholesterol</p>
+              <p className="mt-0.5 font-semibold tnum">142 mg/dL <span className="pill pill-warning ml-1"><span className="dot" />Above range</span></p>
+            </div>
           </div>
         </div>
       </section>
     </div>
   );
 };
-
-export const Logo: React.FC<{ size?: number }> = ({ size = 40 }) => (
-  <div
-    className="relative rounded-xl flex items-center justify-center text-ink-950 shrink-0"
-    style={{ width: size, height: size, background: "linear-gradient(140deg,#8AF7CF,#22D497)", boxShadow: "0 0 24px rgba(79,240,180,.45)" }}
-  >
-    <i className="fas fa-heart-pulse" style={{ fontSize: size * 0.45 }} />
-  </div>
-);

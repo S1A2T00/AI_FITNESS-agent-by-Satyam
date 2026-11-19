@@ -1,87 +1,114 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AnalysisResult } from '../types';
-import { TYPE_META } from './Dashboard';
+import { AnalysisResult, AnalysisType } from '../types';
+import { TYPE_META, TypeIcon, statusLabel } from './Dashboard';
 
 interface HealthHistoryProps {
   history: AnalysisResult[];
   onDelete: (id: string) => void;
 }
 
+const FILTERS: { id: 'ALL' | AnalysisType; label: string }[] = [
+  { id: 'ALL', label: 'All' },
+  { id: 'MEDICAL_REPORT', label: 'Lab reports' },
+  { id: 'BODY_POSE', label: 'Posture' },
+  { id: 'MEDICINE', label: 'Medication' },
+];
+
 export const HealthHistory: React.FC<HealthHistoryProps> = ({ history, onDelete }) => {
   const [open, setOpen] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'ALL' | AnalysisType>('ALL');
+  const items = filter === 'ALL' ? history : history.filter((h) => h.type === filter);
 
   return (
-    <div className="space-y-8">
-      <header className="rise">
-        <p className="eyebrow">Timeline</p>
-        <h1 className="font-display text-4xl md:text-5xl font-extrabold mt-2">Health history<span className="text-vital">.</span></h1>
-        <p className="text-mist-500 mt-2">Every analysis, newest first. Saved to your account.</p>
+    <div className="space-y-6">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 fade-up">
+        <div>
+          <h1 className="text-[28px] font-semibold tracking-tight">History</h1>
+          <p className="text-stone-500 mt-1">Every analysis you've run, newest first.</p>
+        </div>
+        <div className="inline-flex p-1 rounded-xl bg-stone-100 self-start overflow-x-auto max-w-full">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={`h-8 px-3 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                filter === f.id ? 'bg-white text-stone-900 shadow-card' : 'text-stone-500 hover:text-stone-900'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </header>
 
-      {history.length > 0 ? (
-        <ol className="relative space-y-4 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-px before:bg-gradient-to-b before:from-vital/60 before:via-plasma/30 before:to-transparent">
-          {history.map((item, i) => {
-            const meta = TYPE_META[item.type];
+      {items.length > 0 ? (
+        <ul className="card divide-y divide-line fade-up">
+          {items.map((item) => {
             const expanded = open === item.id;
+            const flagged = item.metrics.filter((m) => m.status === 'warning' || m.status === 'critical').length;
             return (
-              <li key={item.id} className={`relative pl-14 rise ${i < 4 ? `rise-${i + 1}` : ''}`}>
-                <span className={`absolute left-0 top-4 w-10 h-10 rounded-xl border flex items-center justify-center bg-ink-900 ${meta.tone}`}>
-                  <i className={`fas ${meta.icon}`} />
-                </span>
-                <article className="panel panel-hover p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-display font-bold text-lg">{meta.label}</h3>
-                        <span className="font-mono text-[10px] text-mist-500">{new Date(item.timestamp).toLocaleString()}</span>
-                      </div>
-                      <p className={`text-sm text-mist-300 mt-2 leading-relaxed ${expanded ? '' : 'line-clamp-2'}`}>{item.summary}</p>
+              <li key={item.id}>
+                <div className="flex items-start gap-4 px-5 py-4">
+                  <TypeIcon type={item.type} />
+                  <button
+                    onClick={() => setOpen(expanded ? null : item.id)}
+                    aria-expanded={expanded}
+                    className="min-w-0 flex-grow text-left"
+                  >
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <p className="font-medium">{TYPE_META[item.type].label}</p>
+                      <span className="text-xs text-stone-400">{new Date(item.timestamp).toLocaleString()}</span>
+                      {flagged > 0 && <span className="pill pill-warning"><span className="dot" />{flagged} flagged</span>}
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={() => setOpen(expanded ? null : item.id)} className="btn-ghost !py-2 !px-3 text-xs" aria-expanded={expanded}>
-                        {expanded ? 'Collapse' : 'Details'}
-                      </button>
-                      <button onClick={() => onDelete(item.id)} className="p-2 text-mist-700 hover:text-coral transition-colors" title="Delete record" aria-label="Delete record">
-                        <i className="fas fa-trash-can" />
-                      </button>
-                    </div>
+                    <p className={`text-sm text-stone-500 mt-1 ${expanded ? '' : 'line-clamp-1'}`}>{item.summary}</p>
+                  </button>
+                  <div className="flex items-center shrink-0">
+                    <button onClick={() => setOpen(expanded ? null : item.id)} className="btn btn-ghost !h-8 !px-2" aria-label={expanded ? 'Collapse' : 'Expand'}>
+                      <i className={`fas fa-chevron-down text-xs transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    <button onClick={() => onDelete(item.id)} className="btn btn-ghost !h-8 !px-2 hover:!text-red-600" title="Delete" aria-label="Delete analysis">
+                      <i className="fas fa-trash-can text-xs" />
+                    </button>
                   </div>
+                </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {(expanded ? item.metrics : item.metrics.slice(0, 3)).map((m, idx) => (
-                      <span key={idx} className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-ink-950/60 border border-white/[0.06] font-mono text-[10px] text-mist-300">
-                        <span className={`dot dot-${m.status}`} />
-                        {m.label}: <span className="text-mist-100">{m.value}</span>
-                      </span>
-                    ))}
-                    {!expanded && item.metrics.length > 3 && (
-                      <span className="font-mono text-[10px] text-mist-500 py-1">+{item.metrics.length - 3} more</span>
+                {expanded && (
+                  <div className="px-5 pb-5 sm:pl-[4.25rem] space-y-4">
+                    <div className="rounded-xl border border-line divide-y divide-line">
+                      {item.metrics.map((m, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-4 px-4 py-2.5 text-sm">
+                          <span className="font-medium">{m.label}</span>
+                          <span className="flex items-center gap-3">
+                            <span className="tnum text-stone-600">{m.value}</span>
+                            <span className={`pill pill-${m.status}`}><span className="dot" />{statusLabel[m.status] ?? m.status}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {item.recommendations.length > 0 && (
+                      <ol className="space-y-2">
+                        {item.recommendations.map((r, idx) => (
+                          <li key={idx} className="flex gap-3 text-sm text-stone-600">
+                            <span className="w-5 h-5 rounded-full bg-stone-100 text-stone-600 text-xs flex items-center justify-center shrink-0 tnum">{idx + 1}</span>{r}
+                          </li>
+                        ))}
+                      </ol>
                     )}
                   </div>
-
-                  {expanded && item.recommendations.length > 0 && (
-                    <ul className="mt-5 space-y-2 border-t border-white/[0.06] pt-4">
-                      {item.recommendations.map((r, idx) => (
-                        <li key={idx} className="text-sm text-mist-300 flex gap-3">
-                          <span className="font-mono text-[10px] text-plasma-300 mt-1">{String(idx + 1).padStart(2, '0')}</span>{r}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </article>
+                )}
               </li>
             );
           })}
-        </ol>
+        </ul>
       ) : (
-        <div className="panel p-14 text-center rise rise-1">
-          <div className="w-16 h-16 rounded-2xl bg-ink-800 border border-white/[0.06] flex items-center justify-center mx-auto text-mist-500">
-            <i className="fas fa-clock-rotate-left text-2xl" />
-          </div>
-          <h2 className="font-display text-2xl font-bold mt-6">Your timeline is empty</h2>
-          <p className="text-mist-500 mt-2 max-w-sm mx-auto text-sm">Analyses of reports, posture and medication will appear here in order.</p>
-          <Link to="/analyze" className="btn-vital mt-8"><i className="fas fa-plus" /> Start first analysis</Link>
+        <div className="card px-6 py-16 text-center fade-up">
+          <span className="inline-flex w-10 h-10 rounded-full bg-stone-100 text-stone-500 items-center justify-center">
+            <i className="fas fa-clock-rotate-left text-sm" />
+          </span>
+          <h2 className="font-semibold mt-4">{history.length ? 'Nothing in this filter' : 'No analyses yet'}</h2>
+          <p className="text-sm text-stone-500 mt-1">Your lab reports, posture scans and medications will show up here.</p>
+          <Link to="/analyze" className="btn btn-primary mt-6">New analysis</Link>
         </div>
       )}
     </div>

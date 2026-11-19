@@ -2,179 +2,164 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { AnalysisResult, AnalysisType } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { TiltCard, VitalOrb } from '../components/Three3D';
+import { Sculpture } from '../components/Three3D';
 
 export const TYPE_META: Record<AnalysisType, { label: string; icon: string; tone: string }> = {
-  BODY_POSE: { label: 'Posture scan', icon: 'fa-person', tone: 'text-coral bg-coral/10 border-coral/20' },
-  MEDICAL_REPORT: { label: 'Lab report', icon: 'fa-flask-vial', tone: 'text-vital bg-vital/10 border-vital/20' },
-  MEDICINE: { label: 'Medication', icon: 'fa-capsules', tone: 'text-amberx bg-amberx/10 border-amberx/20' },
-  GENERAL_CHAT: { label: 'Coach', icon: 'fa-brain', tone: 'text-plasma-300 bg-plasma/10 border-plasma/20' },
+  MEDICAL_REPORT: { label: 'Lab report', icon: 'fa-flask-vial', tone: 'bg-brand-50 text-brand-700' },
+  BODY_POSE: { label: 'Posture scan', icon: 'fa-person', tone: 'bg-indigo-50 text-indigo-600' },
+  MEDICINE: { label: 'Medication', icon: 'fa-capsules', tone: 'bg-amber-50 text-amber-700' },
+  GENERAL_CHAT: { label: 'Coach', icon: 'fa-comment-medical', tone: 'bg-stone-100 text-stone-600' },
 };
 
-const StatCard: React.FC<{ label: string; value: number; icon: string; accent: string; delay: string }> = ({
-  label, value, icon, accent, delay,
-}) => (
-  <TiltCard className={`panel panel-hover p-5 rise ${delay}`}>
-    <div className="flex items-start justify-between" style={{ transform: 'translateZ(30px)' }}>
-      <p className="eyebrow">{label}</p>
-      <i className={`fas ${icon} ${accent}`} />
-    </div>
-    <p className="font-display text-4xl font-bold mt-6 tabular-nums" style={{ transform: 'translateZ(40px)' }}>
-      {value.toString().padStart(2, '0')}
-    </p>
-  </TiltCard>
+export const TypeIcon: React.FC<{ type: AnalysisType; size?: string }> = ({ type, size = 'w-9 h-9' }) => (
+  <span className={`${size} rounded-lg flex items-center justify-center shrink-0 ${TYPE_META[type].tone}`}>
+    <i className={`fas ${TYPE_META[type].icon} text-[13px]`} />
+  </span>
 );
+
+export const statusLabel: Record<string, string> = { normal: 'Normal', warning: 'Watch', critical: 'Attention', neutral: 'Info' };
+
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+};
+
+const relative = (d: Date) => {
+  const mins = Math.round((Date.now() - d.getTime()) / 60000);
+  if (mins < 60) return `${Math.max(mins, 1)}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  return days < 7 ? `${days}d ago` : d.toLocaleDateString();
+};
 
 export const Dashboard: React.FC<{ history: AnalysisResult[] }> = ({ history }) => {
   const { user } = useAuth();
-  const firstName = (user?.displayName || user?.email?.split('@')[0] || 'there').split(' ')[0];
+  const firstName = (user?.displayName || user?.email?.split('@')[0] || '').split(' ')[0];
   const hasData = history.length > 0;
-  const latest = history[0];
   const count = (t: AnalysisType) => history.filter((h) => h.type === t).length;
 
-  // Simple demo logic, unchanged from before: more data → higher score.
+  // Same simple scoring as before: more data → higher score (capped).
   const score = hasData ? Math.min(70 + history.length * 2, 98) : 0;
-  const completeness = Math.min(history.length * 20, 100);
-  const flagged = history.flatMap((h) => h.metrics).filter((m) => m.status === 'warning' || m.status === 'critical').length;
+  const flagged = history
+    .flatMap((h) => h.metrics.map((m) => ({ ...m, type: h.type, at: h.timestamp, id: h.id })))
+    .filter((m) => m.status === 'warning' || m.status === 'critical')
+    .slice(0, 5);
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 rise">
+    <div className="space-y-6">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 fade-up">
         <div>
-          <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-          <h1 className="font-display text-4xl md:text-5xl font-extrabold mt-2">
-            Hello, {firstName}<span className="text-vital">.</span>
+          <p className="text-sm text-stone-500">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          <h1 className="text-[28px] font-semibold tracking-tight mt-1">
+            {greeting()}{firstName ? `, ${firstName}` : ''}
           </h1>
-          <p className="text-mist-500 mt-2">
-            {hasData ? "Here's what your body has been telling us." : 'Run your first analysis to light up your dashboard.'}
-          </p>
         </div>
-        <Link to="/analyze" className="btn-vital self-start md:self-auto">
-          <i className="fas fa-plus" /> New analysis
+        <Link to="/analyze" className="btn btn-primary self-start sm:self-auto">
+          <i className="fas fa-plus text-xs" /> New analysis
         </Link>
       </header>
 
-      {/* Hero: 3D vital orb + score */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <section className="lg:col-span-2 panel relative overflow-hidden rise rise-1 min-h-[340px]">
-          <div className="absolute inset-0 bg-[radial-gradient(40rem_20rem_at_80%_50%,rgba(79,240,180,0.10),transparent_70%)]" />
-          <div className="relative grid sm:grid-cols-2 h-full">
-            <div className="p-7 md:p-9 flex flex-col justify-between gap-8 order-2 sm:order-1">
-              <div>
-                <p className="eyebrow">Vitalis health score</p>
-                <div className="mt-4 flex items-baseline gap-2">
-                  <span className="font-display text-7xl md:text-8xl font-extrabold tabular-nums glow-text text-vital">
-                    {hasData ? score : '--'}
-                  </span>
-                  <span className="font-mono text-mist-500">/100</span>
-                </div>
-                <p className="text-mist-300 mt-3 max-w-xs text-sm leading-relaxed">
-                  {hasData
-                    ? `Based on ${history.length} ${history.length === 1 ? 'record' : 'records'}. More data sharpens the picture.`
-                    : 'Upload a lab report, a posture photo or a prescription to calculate your baseline.'}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-4 font-mono text-xs">
-                <div>
-                  <p className="text-mist-500">LAST SYNC</p>
-                  <p className="text-mist-100 mt-1">{latest ? latest.timestamp.toLocaleDateString() : '—'}</p>
-                </div>
-                <div>
-                  <p className="text-mist-500">FLAGGED MARKERS</p>
-                  <p className={`mt-1 ${flagged ? 'text-amberx' : 'text-mist-100'}`}>{flagged}</p>
-                </div>
-              </div>
+      {/* Score */}
+      <section className="card overflow-hidden grid md:grid-cols-5 fade-up">
+        <div className="md:col-span-3 p-6 sm:p-8 flex flex-col">
+          <p className="text-sm font-medium text-stone-500">Health score</p>
+          <div className="mt-3 flex items-baseline gap-3">
+            <span className="text-6xl sm:text-7xl font-semibold tracking-tight tnum">{hasData ? score : '—'}</span>
+            {hasData && <span className="text-stone-400 tnum">/ 100</span>}
+          </div>
+          <p className="mt-3 text-[15px] text-stone-600 max-w-sm leading-relaxed">
+            {hasData
+              ? `Based on ${history.length} ${history.length === 1 ? 'analysis' : 'analyses'}. Adding more data makes it more accurate.`
+              : 'Run your first analysis — a lab report, a posture photo or a prescription — to get your baseline.'}
+          </p>
+
+          <dl className="mt-auto pt-8 grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <dt className="text-stone-500">Last analysis</dt>
+              <dd className="mt-1 font-medium">{hasData ? relative(history[0].timestamp) : '—'}</dd>
             </div>
-            <VitalOrb score={hasData ? score : 0} className="h-64 sm:h-auto order-1 sm:order-2" />
-          </div>
-        </section>
+            <div>
+              <dt className="text-stone-500">Flagged</dt>
+              <dd className={`mt-1 font-medium tnum ${flagged.length ? 'text-amber-700' : ''}`}>{flagged.length}</dd>
+            </div>
+            <div>
+              <dt className="text-stone-500">Profile</dt>
+              <dd className="mt-1 font-medium tnum">{Math.min(history.length * 20, 100)}%</dd>
+            </div>
+          </dl>
+        </div>
+        <div className="md:col-span-2 relative min-h-[260px] bg-gradient-to-b from-[#F1F7F3] to-[#E6F0EA] md:border-l border-t md:border-t-0 border-line">
+          <Sculpture score={hasData ? score : 0} className="absolute inset-0" />
+        </div>
+      </section>
 
-        <section className="panel p-6 flex flex-col rise rise-2">
-          <p className="eyebrow">Profile completeness</p>
-          <div className="mt-5 flex items-baseline justify-between">
-            <span className="font-display text-4xl font-bold tabular-nums">{completeness}%</span>
-            <span className="font-mono text-xs text-mist-500">{history.length}/5 records</span>
+      {/* Stat strip */}
+      <section className="card !bg-line overflow-hidden grid grid-cols-2 md:grid-cols-4 gap-px fade-up">
+        {[
+          { label: 'Analyses', value: history.length },
+          { label: 'Lab reports', value: count('MEDICAL_REPORT') },
+          { label: 'Posture scans', value: count('BODY_POSE') },
+          { label: 'Medications', value: count('MEDICINE') },
+        ].map((s) => (
+          <div key={s.label} className="p-5 bg-white">
+            <p className="text-sm text-stone-500">{s.label}</p>
+            <p className="mt-2 text-2xl font-semibold tnum">{s.value}</p>
           </div>
-          <div className="mt-4 h-2 rounded-full bg-ink-700 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-plasma to-vital shadow-[0_0_14px_#4FF0B4] transition-all duration-1000"
-              style={{ width: `${completeness}%` }}
-            />
-          </div>
-          <div className="mt-6 space-y-3 text-sm">
-            {(['MEDICAL_REPORT', 'BODY_POSE', 'MEDICINE'] as AnalysisType[]).map((t) => (
-              <div key={t} className="flex items-center justify-between">
-                <span className="flex items-center gap-3 text-mist-300">
-                  <span className={`w-8 h-8 rounded-lg border flex items-center justify-center ${TYPE_META[t].tone}`}>
-                    <i className={`fas ${TYPE_META[t].icon} text-xs`} />
-                  </span>
-                  {TYPE_META[t].label}
-                </span>
-                <span className={`font-mono text-xs ${count(t) ? 'text-vital' : 'text-mist-700'}`}>
-                  {count(t) ? '● captured' : '○ missing'}
-                </span>
-              </div>
-            ))}
-          </div>
-          <Link to="/analyze" className="btn-ghost mt-6 w-full text-sm">Log new data</Link>
-        </section>
-      </div>
+        ))}
+      </section>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Analyses" value={history.length} icon="fa-wave-square" accent="text-vital" delay="rise-1" />
-        <StatCard label="Lab reports" value={count('MEDICAL_REPORT')} icon="fa-flask-vial" accent="text-vital" delay="rise-2" />
-        <StatCard label="Body scans" value={count('BODY_POSE')} icon="fa-person" accent="text-coral" delay="rise-3" />
-        <StatCard label="Meds tracked" value={count('MEDICINE')} icon="fa-capsules" accent="text-amberx" delay="rise-4" />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
-        <section className="md:col-span-3 rise rise-2">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display text-xl font-bold">Latest insights</h3>
-            {hasData && <Link to="/history" className="font-mono text-xs text-vital hover:underline underline-offset-4">VIEW ALL →</Link>}
+      <div className="grid lg:grid-cols-5 gap-6">
+        <section className="lg:col-span-3 card fade-up">
+          <div className="flex items-center justify-between px-5 h-14 border-b border-line">
+            <h2 className="font-semibold">Recent analyses</h2>
+            {hasData && <Link to="/history" className="text-sm text-stone-500 hover:text-stone-900">View all</Link>}
           </div>
-          <div className="space-y-3">
-            {hasData ? (
-              history.slice(0, 3).map((item) => (
-                <div key={item.id} className="panel panel-hover p-4 flex gap-4 items-start">
-                  <span className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${TYPE_META[item.type].tone}`}>
-                    <i className={`fas ${TYPE_META[item.type].icon}`} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm">{TYPE_META[item.type].label}</p>
-                    <p className="text-mist-500 text-sm mt-1 line-clamp-2">{item.summary}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="panel border-dashed p-10 text-center text-mist-500 text-sm">
-                Your insights will appear here after your first analysis.
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="md:col-span-2 rise rise-3">
-          <h3 className="font-display text-xl font-bold mb-4">Signal log</h3>
-          <div className="panel p-2">
-            {hasData ? (
-              history.slice(0, 5).map((item) => (
-                <div key={item.id} className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/[0.03]">
-                  <span className="dot dot-normal" />
+          {hasData ? (
+            <ul className="divide-y divide-line">
+              {history.slice(0, 4).map((item) => (
+                <li key={item.id} className="flex items-start gap-3 px-5 py-4">
+                  <TypeIcon type={item.type} />
                   <div className="min-w-0 flex-grow">
-                    <p className="text-sm font-medium">{TYPE_META[item.type].label}</p>
-                    <p className="font-mono text-[10px] text-mist-500">{item.timestamp.toLocaleString()}</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium">{TYPE_META[item.type].label}</p>
+                      <span className="text-xs text-stone-400 shrink-0">{relative(item.timestamp)}</span>
+                    </div>
+                    <p className="text-sm text-stone-500 mt-0.5 line-clamp-1">{item.summary}</p>
                   </div>
-                  <span className="font-mono text-[10px] text-mist-500">{item.metrics.length} pts</span>
-                </div>
-              ))
-            ) : (
-              <div className="p-8 text-center">
-                <p className="text-mist-500 text-sm">No signals yet.</p>
-                <Link to="/analyze" className="font-mono text-xs text-vital mt-2 inline-block">START ANALYSIS →</Link>
-              </div>
-            )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="px-5 py-12 text-center">
+              <p className="text-sm text-stone-500">No analyses yet.</p>
+              <Link to="/analyze" className="btn btn-secondary mt-4">Start an analysis</Link>
+            </div>
+          )}
+        </section>
+
+        <section className="lg:col-span-2 card fade-up">
+          <div className="flex items-center px-5 h-14 border-b border-line">
+            <h2 className="font-semibold">Needs attention</h2>
           </div>
+          {flagged.length ? (
+            <ul className="divide-y divide-line">
+              {flagged.map((m, i) => (
+                <li key={`${m.id}-${i}`} className="px-5 py-3.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{m.label}</p>
+                    <p className="text-xs text-stone-500 tnum">{m.value} · {TYPE_META[m.type].label}</p>
+                  </div>
+                  <span className={`pill pill-${m.status} shrink-0`}><span className="dot" />{statusLabel[m.status]}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="px-5 py-12 text-center">
+              <span className="inline-flex w-9 h-9 rounded-full bg-brand-50 text-brand-600 items-center justify-center"><i className="fas fa-check text-sm" /></span>
+              <p className="text-sm text-stone-500 mt-3">Nothing flagged right now.</p>
+            </div>
+          )}
         </section>
       </div>
     </div>
