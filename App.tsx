@@ -7,6 +7,11 @@ import { AnalysisHub } from './views/AnalysisHub';
 import { AICoach } from './views/AICoach';
 import { HealthHistory } from './views/HealthHistory';
 import { AnalysisResult } from './types';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { Login } from './views/Login';
+import { AdminPanel } from './views/AdminPanel';
+import { fetchHistory, deleteHistoryItem } from './services/geminiService';
 
 const MedicineView: React.FC<{ history: AnalysisResult[] }> = ({ history }) => {
   const medications = history.filter(h => h.type === 'MEDICINE');
@@ -57,48 +62,66 @@ const MedicineView: React.FC<{ history: AnalysisResult[] }> = ({ history }) => {
   );
 };
 
-const App: React.FC = () => {
+const AuthenticatedApp: React.FC = () => {
+  const { user } = useAuth();
+  const uid = user!.uid;
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisResult[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Load history from local storage on mount
+  // History is stored in PostgreSQL per user, so it follows the account
+  // across devices.
   useEffect(() => {
-    const saved = localStorage.getItem('vitalis_history');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Revive dates
-        setAnalysisHistory(parsed.map((item: any) => ({ ...item, timestamp: new Date(item.timestamp) })));
-      } catch (e) {
-        console.error("Failed to parse history", e);
-      }
+    let cancelled = false;
+    setLoadError(null);
+    fetchHistory()
+      .then((items) => { if (!cancelled) setAnalysisHistory(items); })
+      .catch((e: Error) => { if (!cancelled) setLoadError(e.message); });
+    return () => { cancelled = true; };
+  }, [uid]);
+
+  // The server already saved it; just show it.
+  const addAnalysis = (result: AnalysisResult) =>
+    setAnalysisHistory((prev) => [result, ...prev]);
+
+  const deleteAnalysis = async (id: string) => {
+    const previous = analysisHistory;
+    setAnalysisHistory(previous.filter(item => item.id !== id));
+    try {
+      await deleteHistoryItem(id);
+    } catch (e) {
+      setAnalysisHistory(previous);
+      alert((e as Error).message);
     }
-  }, []);
-
-  const addAnalysis = (result: AnalysisResult) => {
-    const newHistory = [result, ...analysisHistory];
-    setAnalysisHistory(newHistory);
-    localStorage.setItem('vitalis_history', JSON.stringify(newHistory));
-  };
-
-  const deleteAnalysis = (id: string) => {
-    const newHistory = analysisHistory.filter(item => item.id !== id);
-    setAnalysisHistory(newHistory);
-    localStorage.setItem('vitalis_history', JSON.stringify(newHistory));
   };
 
   return (
-    <Router>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Dashboard history={analysisHistory} />} />
-          <Route path="/analyze" element={<AnalysisHub onAnalysisComplete={addAnalysis} />} />
-          <Route path="/medicine" element={<MedicineView history={analysisHistory} />} />
-          <Route path="/coach" element={<AICoach history={analysisHistory} />} />
-          <Route path="/history" element={<HealthHistory history={analysisHistory} onDelete={deleteAnalysis} />} />
-        </Routes>
-      </Layout>
-    </Router>
+    <Layout>
+      {loadError && (
+        <p className="mb-6 bg-red-50 border border-red-100 text-red-700 rounded-2xl p-4 text-sm">
+          Could not load your health history: {loadError}
+        </p>
+      )}
+      <Routes>
+        <Route path="/" element={<Dashboard history={analysisHistory} />} />
+        <Route path="/analyze" element={<AnalysisHub onAnalysisComplete={addAnalysis} />} />
+        <Route path="/medicine" element={<MedicineView history={analysisHistory} />} />
+        <Route path="/coach" element={<AICoach history={analysisHistory} />} />
+        <Route path="/history" element={<HealthHistory history={analysisHistory} onDelete={deleteAnalysis} />} />
+        <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminPanel /></ProtectedRoute>} />
+      </Routes>
+    </Layout>
   );
 };
+
+const App: React.FC = () => (
+  <AuthProvider>
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/*" element={<ProtectedRoute><AuthenticatedApp /></ProtectedRoute>} />
+      </Routes>
+    </Router>
+  </AuthProvider>
+);
 
 export default App;

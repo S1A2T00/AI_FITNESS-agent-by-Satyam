@@ -39,7 +39,7 @@ export const AnalysisHub: React.FC<AnalysisHubProps> = ({ onAnalysisComplete }) 
     setIsAnalyzing(true);
     setError(null);
     try {
-      let imagesToAnalyze: string[] = [];
+      const imagesToAnalyze: string[] = [];
       if (activeType === 'BODY_POSE') {
         if (previews.front) imagesToAnalyze.push(previews.front);
         if (previews.side) imagesToAnalyze.push(previews.side);

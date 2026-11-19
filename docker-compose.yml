@@ -1,0 +1,40 @@
+# App + PostgreSQL.
+#   docker compose up -d --build     build from source
+#   docker compose pull && docker compose up -d   use the image CI pushed
+# Config comes from .env (copy .env.example).
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vitalis
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vitalis}
+      POSTGRES_DB: vitalis
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"   # localhost only, for npm run dev:api
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vitalis -d vitalis"]
+      interval: 5s
+      retries: 20
+
+  app:
+    image: ${APP_IMAGE:-ghcr.io/s1a2t00/ai_fitness-agent-by-satyam:latest}
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://vitalis:${POSTGRES_PASSWORD:-vitalis}@db:5432/vitalis
+      DATABASE_SSL: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3001}:3001"
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  pgdata:

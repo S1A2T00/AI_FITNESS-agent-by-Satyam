@@ -8,12 +8,20 @@ import {
   MODEL_CONFIG,
   SYSTEM_INSTRUCTIONS,
 } from "../constants.ts";
+import {
+  authenticate,
+  requireRole,
+  listUsers,
+  setUserRole,
+  webConfig,
+} from "./auth.mjs";
+import * as db from "./db.mjs";
 
 const apiKey = process.env.GEMINI_API_KEY?.trim();
 
 if (!apiKey) {
   throw new Error(
-    "GEMINI_API_KEY is missing. Configure .env.local or the container environment."
+    "GEMINI_API_KEY is missing. Configure .env or the container environment."
   );
 }
 
@@ -98,12 +106,10 @@ const analysisSchema = {
   required: ["summary", "metrics", "recommendations", "disclaimer"],
 };
 
-async function analyze(body) {
-  if (
-    typeof body.type !== "string" ||
-    !body.type.trim() ||
-    body.type.length > 100
-  ) {
+const ANALYSIS_TYPES = ["BODY_POSE", "MEDICAL_REPORT", "MEDICINE", "GENERAL_CHAT"];
+
+async function analyze(user, body) {
+  if (!ANALYSIS_TYPES.includes(body.type)) {
     throw Object.assign(new Error("Invalid analysis type."), {
       status: 400,
     });
@@ -163,16 +169,25 @@ async function analyze(body) {
 
   const result = JSON.parse(response.text);
 
-  return {
+  return db.insertAnalysis(user.uid, {
     ...result,
     id: randomUUID(),
     type: body.type,
-    timestamp: new Date().toISOString(),
     rawOutput: response.text,
-  };
+  });
 }
 
-async function coach(body) {
+// The health context and conversation come from the database, not the
+// browser, so the coach always sees this user's real, saved history.
+async function buildHealthContext(uid) {
+  const analyses = await db.listAnalyses(uid, 50);
+  if (analyses.length === 0) return "No prior health analyses performed.";
+  return analyses
+    .map((a) => `- ${a.type} (${a.timestamp.slice(0, 10)}): ${a.summary}`)
+    .join("\n");
+}
+
+async function coach(user, body) {
   if (
     typeof body.message !== "string" ||
     !body.message.trim() ||
@@ -183,18 +198,31 @@ async function coach(body) {
     });
   }
 
+  const [healthContext, previous] = await Promise.all([
+    buildHealthContext(user.uid),
+    db.listCoachMessages(user.uid, 20),
+  ]);
+
   const response = await ai.models.generateContent({
     model: MODEL_CONFIG.TEXT_MODEL,
-    contents: body.message,
+    contents: [
+      ...previous.map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      })),
+      { role: "user", parts: [{ text: body.message }] },
+    ],
     config: {
       systemInstruction:
         `${SYSTEM_INSTRUCTIONS.HEALTH_AGENT}\n\n` +
         `USER HEALTH CONTEXT:\n` +
-        String(body.healthContext || "").slice(0, 50000),
+        healthContext.slice(0, 50000),
     },
   });
 
-  return { text: response.text || "" };
+  const text = response.text || "";
+  if (text) await db.insertCoachExchange(user.uid, body.message, text);
+  return { text };
 }
 
 const mimeTypes = {
@@ -268,10 +296,59 @@ const server = http.createServer(async (req, res) => {
     );
 
     if (pathname === "/api/health" && req.method === "GET") {
-      return sendJson(res, 200, { status: "ok" });
+      try {
+        await db.ping();
+        return sendJson(res, 200, { status: "ok", database: "ok" });
+      } catch {
+        return sendJson(res, 503, { status: "error", database: "unreachable" });
+      }
+    }
+
+    // Public: the browser needs this to start Firebase before anyone signs in.
+    if (pathname === "/api/auth-config" && req.method === "GET") {
+      return sendJson(res, 200, webConfig());
     }
 
     if (pathname.startsWith("/api/")) {
+      // Everything below requires a valid Firebase ID token.
+      const user = await authenticate(req);
+      await db.upsertUser(user);
+
+      if (pathname === "/api/me" && req.method === "GET") {
+        return sendJson(res, 200, user);
+      }
+
+      if (pathname === "/api/history" && req.method === "GET") {
+        return sendJson(res, 200, { history: await db.listAnalyses(user.uid) });
+      }
+
+      const historyItem = pathname.match(
+        /^\/api\/history\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
+      );
+      if (historyItem && req.method === "DELETE") {
+        const deleted = await db.deleteAnalysis(user.uid, historyItem[1]);
+        return deleted
+          ? sendJson(res, 200, { deleted: true })
+          : sendJson(res, 404, { error: "Analysis not found." });
+      }
+
+      if (pathname === "/api/coach/messages" && req.method === "GET") {
+        return sendJson(res, 200, { messages: await db.listCoachMessages(user.uid) });
+      }
+
+      if (pathname === "/api/coach/messages" && req.method === "DELETE") {
+        await db.clearCoachMessages(user.uid);
+        return sendJson(res, 200, { cleared: true });
+      }
+
+      if (pathname === "/api/admin/users" && req.method === "GET") {
+        requireRole(user, "admin");
+        const [users, counts] = await Promise.all([listUsers(), db.analysisCounts()]);
+        return sendJson(res, 200, {
+          users: users.map((u) => ({ ...u, analyses: counts.get(u.uid) || 0 })),
+        });
+      }
+
       if (req.method !== "POST") {
         return sendJson(res, 405, { error: "Method not allowed." });
       }
@@ -283,11 +360,18 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (pathname === "/api/analyze") {
-        return sendJson(res, 200, await analyze(body));
+        return sendJson(res, 200, await analyze(user, body));
       }
 
       if (pathname === "/api/coach") {
-        return sendJson(res, 200, await coach(body));
+        return sendJson(res, 200, await coach(user, body));
+      }
+
+      if (pathname === "/api/admin/set-role") {
+        requireRole(user, "admin");
+        const updated = await setUserRole(user, body);
+        await db.setRole(updated.uid, updated.role);
+        return sendJson(res, 200, updated);
       }
 
       return sendJson(res, 404, { error: "API route not found." });
@@ -300,12 +384,13 @@ const server = http.createServer(async (req, res) => {
     await serveFrontend(req, res, pathname);
   } catch (error) {
     const status = error.status || 502;
+    if (!error.status) console.error(error);
 
     sendJson(res, status, {
-      error:
-        status >= 500
-          ? "AI request failed. Check the server API key, model access and quota."
-          : error.message,
+      // Errors we raised on purpose carry a status and a safe message.
+      error: error.status
+        ? error.message
+        : "AI request failed. Check the server API key, model access and quota.",
     });
   }
 });
@@ -313,6 +398,17 @@ const server = http.createServer(async (req, res) => {
 server.requestTimeout = 120000;
 server.headersTimeout = 15000;
 
+// Apply database migrations before accepting traffic.
+await db.migrate();
+
 server.listen(port, host, () => {
   console.log(`Application server: http://${host}:${port}`);
 });
+
+// Graceful shutdown for container platforms (they send SIGTERM on redeploy).
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.on(signal, () => {
+    server.close(() => db.pool.end().finally(() => process.exit(0)));
+    setTimeout(() => process.exit(1), 10000).unref();
+  });
+}
