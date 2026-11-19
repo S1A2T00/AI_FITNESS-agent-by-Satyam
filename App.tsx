@@ -6,6 +6,7 @@ import { Dashboard } from './views/Dashboard';
 import { AnalysisHub } from './views/AnalysisHub';
 import { AICoach } from './views/AICoach';
 import { HealthHistory } from './views/HealthHistory';
+import { Progress } from './views/Progress';
 import { AnalysisResult } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -98,6 +99,7 @@ const AuthenticatedApp: React.FC = () => {
         <Route path="/medicine" element={<MedicineView history={analysisHistory} />} />
         <Route path="/coach" element={<AICoach history={analysisHistory} />} />
         <Route path="/history" element={<HealthHistory history={analysisHistory} onDelete={deleteAnalysis} />} />
+        <Route path="/progress" element={<Progress history={analysisHistory} />} />
         <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminPanel /></ProtectedRoute>} />
       </Routes>
     </Layout>

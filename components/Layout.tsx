@@ -6,6 +6,7 @@ import { Logo } from './Logo';
 const NAV = [
   { to: '/', icon: 'fa-house', label: 'Overview' },
   { to: '/analyze', icon: 'fa-wand-magic-sparkles', label: 'Analyze' },
+  { to: '/progress', icon: 'fa-chart-line', label: 'Progress' },
   { to: '/history', icon: 'fa-clock-rotate-left', label: 'History' },
   { to: '/medicine', icon: 'fa-capsules', label: 'Meds' },
   { to: '/coach', icon: 'fa-comment-medical', label: 'Coach' },

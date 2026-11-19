@@ -11,7 +11,7 @@ const SEVERITY_PILL: Record<PostureFinding['severity'], string> = {
   severe: 'pill-critical',
 };
 
-class WebGLBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
+export class WebGLBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() {
     return { failed: true };

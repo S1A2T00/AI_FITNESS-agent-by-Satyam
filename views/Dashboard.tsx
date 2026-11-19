@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AnalysisResult, AnalysisType } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { Sculpture } from '../components/Three3D';
+import { healthScore } from '../lib/progress';
 
 export const TYPE_META: Record<AnalysisType, { label: string; icon: string; tone: string }> = {
   MEDICAL_REPORT: { label: 'Lab report', icon: 'fa-flask-vial', tone: 'bg-brand-50 text-brand-700' },
@@ -39,8 +40,8 @@ export const Dashboard: React.FC<{ history: AnalysisResult[] }> = ({ history }) 
   const hasData = history.length > 0;
   const count = (t: AnalysisType) => history.filter((h) => h.type === t).length;
 
-  // Same simple scoring as before: more data → higher score (capped).
-  const score = hasData ? Math.min(70 + history.length * 2, 98) : 0;
+  // Real score: latest lab-marker statuses minus posture findings (see lib/progress).
+  const score = healthScore(history);
   const flagged = history
     .flatMap((h) => h.metrics.map((m) => ({ ...m, type: h.type, at: h.timestamp, id: h.id })))
     .filter((m) => m.status === 'warning' || m.status === 'critical')
@@ -63,15 +64,22 @@ export const Dashboard: React.FC<{ history: AnalysisResult[] }> = ({ history }) 
       {/* Score */}
       <section className="card overflow-hidden grid md:grid-cols-5 fade-up">
         <div className="md:col-span-3 p-6 sm:p-8 flex flex-col">
-          <p className="text-sm font-medium text-stone-500">Health score</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-stone-500">Health score</p>
+            {hasData && (
+              <Link to="/progress" className="text-sm text-stone-500 hover:text-stone-900">
+                View progress <i className="fas fa-arrow-right text-[10px] ml-0.5" />
+              </Link>
+            )}
+          </div>
           <div className="mt-3 flex items-baseline gap-3">
-            <span className="text-6xl sm:text-7xl font-semibold tracking-tight tnum">{hasData ? score : '—'}</span>
-            {hasData && <span className="text-stone-400 tnum">/ 100</span>}
+            <span className="text-6xl sm:text-7xl font-semibold tracking-tight">{score ?? '—'}</span>
+            {score !== null && <span className="text-stone-400">/ 100</span>}
           </div>
           <p className="mt-3 text-[15px] text-stone-600 max-w-sm leading-relaxed">
-            {hasData
-              ? `Based on ${history.length} ${history.length === 1 ? 'analysis' : 'analyses'}. Adding more data makes it more accurate.`
-              : 'Run your first analysis — a lab report, a posture photo or a prescription — to get your baseline.'}
+            {score !== null
+              ? 'Based on the latest status of each lab marker and your most recent posture scan.'
+              : 'Run a lab report or posture analysis to get your baseline score.'}
           </p>
 
           <dl className="mt-auto pt-8 grid grid-cols-3 gap-4 text-sm">
@@ -90,7 +98,7 @@ export const Dashboard: React.FC<{ history: AnalysisResult[] }> = ({ history }) 
           </dl>
         </div>
         <div className="md:col-span-2 relative min-h-[260px] bg-gradient-to-b from-[#F1F7F3] to-[#E6F0EA] md:border-l border-t md:border-t-0 border-line">
-          <Sculpture score={hasData ? score : 0} className="absolute inset-0" />
+          <Sculpture score={score ?? 0} className="absolute inset-0" />
         </div>
       </section>
 
