@@ -83,12 +83,59 @@
 
     ::selection { background: #D1FAE5; }
 
+    /* ---------- Liquid glass ---------- */
+    .liquid-glass {
+      position: relative;
+      isolation: isolate;
+      background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.32));
+      -webkit-backdrop-filter: blur(18px) saturate(190%) brightness(1.06);
+      backdrop-filter: blur(18px) saturate(190%) brightness(1.06);
+      box-shadow:
+        inset 0 1px 0.5px rgba(255,255,255,0.95),   /* top specular rim */
+        inset 0 -1px 1px rgba(255,255,255,0.35),    /* bottom inner glow */
+        inset 0 0 0 1px rgba(255,255,255,0.45),     /* glass edge */
+        0 0 0 0.5px rgba(28,25,23,0.10),            /* hairline outside */
+        0 12px 32px -10px rgba(28,25,23,0.28),
+        0 2px 8px rgba(28,25,23,0.06);
+    }
+    /* Refraction: only Chromium renders SVG filters in backdrop-filter, so the
+       app adds .refract after detecting it; everyone else keeps the rule above. */
+    .liquid-glass.refract { backdrop-filter: url(#liquid-refraction) blur(14px) saturate(190%) brightness(1.06); }
+    .liquid-glass::before {
+      /* curved highlight sweeping across the top half */
+      content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+      background:
+        radial-gradient(120% 70% at 50% -20%, rgba(255,255,255,0.75), rgba(255,255,255,0) 60%),
+        linear-gradient(90deg, rgba(255,255,255,0.35), rgba(255,255,255,0) 18%, rgba(255,255,255,0) 82%, rgba(255,255,255,0.35));
+      opacity: .7;
+    }
+    .liquid-pill {
+      background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.7));
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,1),
+        inset 0 -1px 1px rgba(28,25,23,0.06),
+        0 0 0 0.5px rgba(28,25,23,0.08),
+        0 4px 12px -4px rgba(28,25,23,0.25);
+      transition: transform .45s cubic-bezier(.3,1.4,.5,1), width .45s cubic-bezier(.3,1.4,.5,1);
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .liquid-glass { background: rgba(255,255,255,0.96); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
   </style>
 </head>
 <body>
+  <!-- Subtle lens distortion used by .liquid-glass.refract -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="liquid-refraction" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.02" numOctaves="2" seed="7" result="noise" />
+      <feGaussianBlur in="noise" stdDeviation="2" result="soft" />
+      <feDisplacementMap in="SourceGraphic" in2="soft" scale="18" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

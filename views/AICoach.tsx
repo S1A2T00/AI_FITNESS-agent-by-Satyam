@@ -113,7 +113,7 @@ export const AICoach: React.FC<{ history: AnalysisResult[] }> = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-160px)] md:h-[calc(100dvh-80px)] max-w-3xl mx-auto card overflow-hidden fade-up">
+    <div className="flex flex-col h-[calc(100dvh-190px)] max-w-3xl mx-auto card overflow-hidden fade-up">
       <div className="flex items-center justify-between px-4 h-16 border-b border-line">
         <div className="flex items-center gap-3">
           <Sculpture active={isLoading} zoom={3.6} className="w-11 h-11 rounded-full bg-[#EEF6F1] overflow-hidden" />
