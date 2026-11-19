@@ -1,0 +1,31 @@
+# Render Blueprint for the API (Dashboard → New → Blueprint → pick this repo).
+# Secrets are "sync: false": Render asks for their values when you create it.
+services:
+  - type: web
+    name: vitalis-api
+    runtime: docker
+    plan: free
+    # Change to master/main once the PR is merged.
+    branch: feat/firebase-auth-postgres-cicd
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL          # Neon *direct* connection string (not -pooler), with ?sslmode=require
+        sync: false
+      - key: CORS_ORIGINS          # e.g. https://vitalis.vercel.app
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FIREBASE_WEB_API_KEY
+        sync: false
+      - key: FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_APP_ID
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT   # base64 of the service-account JSON
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: REQUIRE_EMAIL_VERIFIED
+        value: "false"

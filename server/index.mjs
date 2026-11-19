@@ -17,6 +17,9 @@ import {
 } from "./auth.mjs";
 import * as db from "./db.mjs";
 import { POSTURE_PROMPT, postureFindingsSchema, sanitizeFindings } from "./posture.mjs";
+import { createCors } from "./cors.mjs";
+
+const cors = createCors();
 
 const apiKey = process.env.GEMINI_API_KEY?.trim();
 
@@ -299,6 +302,9 @@ const server = http.createServer(async (req, res) => {
     const pathname = decodeURIComponent(
       new URL(req.url, "http://localhost").pathname
     );
+
+    // Frontend on another domain (Vercel) → CORS for the API only.
+    if (pathname.startsWith("/api/") && cors.handle(req, res)) return;
 
     if (pathname === "/api/health" && req.method === "GET") {
       try {

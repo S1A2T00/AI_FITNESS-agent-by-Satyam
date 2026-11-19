@@ -1,5 +1,6 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
+import { apiUrl } from "./apiBase";
 
 // The web config is not secret, but it is served by the API at runtime so the
 // same Docker image works for any Firebase project without a rebuild.
@@ -8,7 +9,7 @@ let authPromise: Promise<Auth> | null = null;
 export function getFirebaseAuth(): Promise<Auth> {
   if (!authPromise) {
     authPromise = (async () => {
-      const res = await fetch("/api/auth-config");
+      const res = await fetch(apiUrl("/api/auth-config"));
       if (!res.ok) throw new Error("Could not load sign-in configuration.");
       const config = await res.json();
       if (!config.apiKey || !config.projectId) {

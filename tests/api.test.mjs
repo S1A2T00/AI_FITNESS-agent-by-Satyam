@@ -24,6 +24,7 @@ before(async () => {
       FIREBASE_WEB_API_KEY: "test-web-key",
       FIREBASE_SERVICE_ACCOUNT: "",
       FIREBASE_SERVICE_ACCOUNT_PATH: "",
+      CORS_ORIGINS: "https://frontend.example.com",
     },
   });
   server.stdout.on("data", (d) => (output += d));
@@ -78,6 +79,21 @@ for (const [method, path] of protectedRoutes) {
     assert.equal((await fetch(base + path, init)).status, 401, "forged token rejected");
   });
 }
+
+test("CORS: allowed frontend can call the API cross-origin", { skip }, async () => {
+  const pre = await fetch(`${base}/api/history`, {
+    method: "OPTIONS",
+    headers: { Origin: "https://frontend.example.com", "Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "authorization" },
+  });
+  assert.equal(pre.status, 204);
+  assert.equal(pre.headers.get("access-control-allow-origin"), "https://frontend.example.com");
+
+  const cfg = await fetch(`${base}/api/auth-config`, { headers: { Origin: "https://frontend.example.com" } });
+  assert.equal(cfg.headers.get("access-control-allow-origin"), "https://frontend.example.com");
+
+  const evil = await fetch(`${base}/api/auth-config`, { headers: { Origin: "https://evil.example.com" } });
+  assert.equal(evil.headers.get("access-control-allow-origin"), null);
+});
 
 test("static file requests never leak internals", { skip }, async () => {
   const res = await fetch(`${base}/index.html`);

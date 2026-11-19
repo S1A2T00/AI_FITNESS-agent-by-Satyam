@@ -42,6 +42,23 @@ Every push and pull request runs `.github/workflows/ci-cd.yml`:
 
 CodeQL and Dependabot also run. Scan results appear under **Security → Code scanning**.
 
+## Deploy: Neon (database) + Render (API) + Vercel (frontend)
+
+1. **Neon** – create a project, then copy the **direct** connection string
+   (the host must *not* contain `-pooler`; migrations need a session lock).
+   Add `?sslmode=require` if it isn't there. Tables are created on first start.
+2. **Render** – New → **Blueprint** → this repo (uses `render.yaml`), or New → Web
+   Service → Docker. Health check `/api/health`. Set `DATABASE_URL`, `GEMINI_API_KEY`,
+   `FIREBASE_*` (service account base64-encoded), `ADMIN_EMAILS`, and
+   `CORS_ORIGINS=https://<your-app>.vercel.app`.
+3. **Vercel** – New Project → this repo (uses `vercel.json`, Vite). Set
+   `VITE_API_URL=https://<your-api>.onrender.com`, then deploy.
+4. **Firebase** → Authentication → Settings → Authorized domains → add the Vercel domain.
+5. Put the final Vercel URL in Render's `CORS_ORIGINS` (comma-separate several; a
+   `*` may stand for a subdomain fragment, e.g. `https://vitalis-*.vercel.app` for previews).
+
+Render's free plan sleeps after ~15 min idle; the first request then takes ~1 minute.
+
 ## Deploy on a server
 
 On any machine with Docker:
