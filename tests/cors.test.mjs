@@ -24,6 +24,19 @@ test("exact origins and preview wildcards are allowed; lookalikes are not", () =
   assert.ok(!isAllowed(undefined));
 });
 
+test("values pasted with quotes, spaces, capitals or a key prefix still work", () => {
+  for (const value of [
+    '"https://Vitalis-psi-lac.vercel.app/"',
+    "CORS_ORIGINS=https://vitalis-psi-lac.vercel.app",
+    " https://x.example.com ; https://vitalis-psi-lac.vercel.app ",
+    "https://x.example.com https://vitalis-psi-lac.vercel.app",
+  ]) {
+    const cors = createCors(value);
+    assert.ok(cors.isAllowed("https://vitalis-psi-lac.vercel.app"), value);
+    assert.ok(!cors.isAllowed("https://vitalis-psi-lac.vercel.app.evil.com"), value);
+  }
+});
+
 test("empty list allows no cross-origin callers", () => {
   assert.ok(!createCors("").isAllowed("https://vitalis.vercel.app"));
 });

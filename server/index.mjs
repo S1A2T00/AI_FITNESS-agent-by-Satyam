@@ -430,6 +430,12 @@ await db.migrate();
 
 server.listen(port, host, () => {
   console.log(`Application server: http://${host}:${port}`);
+  // Origins are public URLs, so logging them is safe and helps debug CORS.
+  console.log(
+    cors.origins.length
+      ? `CORS allowed origins: ${cors.origins.join(", ")}`
+      : "CORS: no CORS_ORIGINS set, so only same-origin browsers can call the API"
+  );
 });
 
 // Graceful shutdown for container platforms (they send SIGTERM on redeploy).

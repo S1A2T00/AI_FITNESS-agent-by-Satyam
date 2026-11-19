@@ -6,10 +6,18 @@
 //   https://vitalis-*.vercel.app
 // Auth uses a Bearer token (no cookies), so credentials are never enabled.
 
-function toMatcher(entry) {
-  const origin = entry.trim().replace(/\/+$/, "");
-  if (!origin) return null;
-  if (!origin.includes("*")) return (o) => o === origin;
+// Forgiving about how the value was pasted into a dashboard: quotes, spaces,
+// semicolons, capitals, a trailing "/" or a leading "CORS_ORIGINS=".
+export function parseOrigins(list = "") {
+  return String(list)
+    .replace(/^\s*CORS_ORIGINS\s*=/i, "")
+    .split(/[\s,;]+/)
+    .map((e) => e.replace(/^["']+|["']+$/g, "").replace(/\/+$/, "").toLowerCase())
+    .filter(Boolean);
+}
+
+function toMatcher(origin) {
+  if (!origin.includes("*")) return (o) => o.toLowerCase() === origin;
   // Escape regex characters, then let "*" match one DNS label fragment only.
   const pattern = origin.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[a-z0-9-]+");
   const re = new RegExp(`^${pattern}$`, "i");
@@ -17,7 +25,8 @@ function toMatcher(entry) {
 }
 
 export function createCors(list = process.env.CORS_ORIGINS || "") {
-  const matchers = list.split(",").map(toMatcher).filter(Boolean);
+  const origins = parseOrigins(list);
+  const matchers = origins.map(toMatcher);
 
   const isAllowed = (origin) => Boolean(origin) && matchers.some((m) => m(origin));
 
@@ -49,5 +58,5 @@ export function createCors(list = process.env.CORS_ORIGINS || "") {
     return false;
   }
 
-  return { handle, isAllowed };
+  return { handle, isAllowed, origins };
 }
