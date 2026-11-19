@@ -3,7 +3,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
 import {
   MODEL_CONFIG,
   SYSTEM_INSTRUCTIONS,
@@ -18,6 +18,9 @@ import {
 import * as db from "./db.mjs";
 import { POSTURE_PROMPT, postureFindingsSchema, sanitizeFindings } from "./posture.mjs";
 import { createCors } from "./cors.mjs";
+import { AI_TIMEOUT_MS, callAi } from "./aiErrors.mjs";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const cors = createCors();
 
@@ -153,7 +156,7 @@ async function analyze(user, body) {
     };
   });
 
-  const response = await ai.models.generateContent({
+  const response = await callAi(() => ai.models.generateContent({
     model: MODEL_CONFIG.VISION_MODEL,
     contents: {
       parts: [
@@ -170,15 +173,20 @@ async function analyze(user, body) {
     config: {
       responseMimeType: "application/json",
       responseSchema: analysisSchema,
+      // Low thinking keeps image analysis well under a minute.
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      httpOptions: { timeout: AI_TIMEOUT_MS },
     },
-  });
+  }));
 
-  const result = JSON.parse(response.text);
+  const result = await callAi(async () => JSON.parse(response.text));
 
   const { postureFindings, ...rest } = result;
   return db.insertAnalysis(user.uid, {
     ...rest,
-    id: randomUUID(),
+    // The browser picks the id, so it can fetch the result later if the
+    // connection drops while the AI is still working.
+    id: UUID.test(String(body.requestId)) ? String(body.requestId) : randomUUID(),
     type: body.type,
     rawOutput: response.text,
     details: body.type === "BODY_POSE" ? { posture: sanitizeFindings(postureFindings) } : {},
@@ -211,7 +219,7 @@ async function coach(user, body) {
     db.listCoachMessages(user.uid, 20),
   ]);
 
-  const response = await ai.models.generateContent({
+  const response = await callAi(() => ai.models.generateContent({
     model: MODEL_CONFIG.TEXT_MODEL,
     contents: [
       ...previous.map((m) => ({
@@ -225,8 +233,9 @@ async function coach(user, body) {
         `${SYSTEM_INSTRUCTIONS.HEALTH_AGENT}\n\n` +
         `USER HEALTH CONTEXT:\n` +
         healthContext.slice(0, 50000),
+      httpOptions: { timeout: AI_TIMEOUT_MS },
     },
-  });
+  }));
 
   const text = response.text || "";
   if (text) await db.insertCoachExchange(user.uid, body.message, text);
@@ -336,6 +345,13 @@ const server = http.createServer(async (req, res) => {
       const historyItem = pathname.match(
         /^\/api\/history\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
       );
+      if (historyItem && req.method === "GET") {
+        const item = await db.getAnalysis(user.uid, historyItem[1]);
+        return item
+          ? sendJson(res, 200, item)
+          : sendJson(res, 404, { error: "Analysis not found." });
+      }
+
       if (historyItem && req.method === "DELETE") {
         const deleted = await db.deleteAnalysis(user.uid, historyItem[1]);
         return deleted

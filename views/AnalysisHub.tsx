@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { performAnalysis } from '../services/geminiService';
+import { downscaleImage } from '../lib/image';
 import { AnalysisType, AnalysisResult } from '../types';
 import { MEDICAL_DISCLAIMER } from '../constants';
 import { statusLabel } from './Dashboard';
@@ -65,12 +66,11 @@ export const AnalysisHub: React.FC<AnalysisHubProps> = ({ onAnalysisComplete }) 
   const handleFileChange = (slot: 'main' | 'front' | 'side') => (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviews(prev => ({ ...prev, [slot]: reader.result as string }));
-      };
-      reader.readAsDataURL(selected);
       setResult(null);
+      setError(null);
+      downscaleImage(selected)
+        .then((dataUrl) => setPreviews(prev => ({ ...prev, [slot]: dataUrl })))
+        .catch(() => setError("Couldn't read that image. Try a JPEG or PNG."));
     }
   };
 
@@ -100,7 +100,7 @@ export const AnalysisHub: React.FC<AnalysisHubProps> = ({ onAnalysisComplete }) 
       setResult(data);
       onAnalysisComplete(data);
     } catch (err) {
-      setError("Failed to analyze. Please ensure your API key is correct and the images are clear.");
+      setError((err as Error)?.message || "Analysis failed. Please try again.");
       console.error(err);
     } finally {
       setIsAnalyzing(false);
@@ -172,8 +172,10 @@ export const AnalysisHub: React.FC<AnalysisHubProps> = ({ onAnalysisComplete }) 
           )}
 
           <div className="mt-6 pt-5 border-t border-line flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-xs text-stone-500 flex items-center gap-2">
-              <i className="fas fa-lock text-[10px]" /> Photos are used for this analysis only and aren't stored.
+            <p className="text-xs text-stone-500 flex items-center gap-2" aria-live="polite">
+              {isAnalyzing
+                ? <><i className="fas fa-hourglass-half text-[10px]" /> This usually takes 10–40 seconds. Keep this page open.</>
+                : <><i className="fas fa-lock text-[10px]" /> Photos are used for this analysis only and aren't stored.</>}
             </p>
             <button onClick={runAnalysis} disabled={isAnalyzing || !isReadyToAnalyze()} className="btn btn-primary">
               {isAnalyzing ? <><i className="fas fa-circle-notch fa-spin text-xs" /> Analyzing…</> : 'Analyze'}

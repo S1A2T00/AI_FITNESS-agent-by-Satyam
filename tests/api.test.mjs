@@ -60,6 +60,7 @@ test("auth-config is public and contains no secrets", { skip }, async () => {
 const protectedRoutes = [
   ["GET", "/api/me"],
   ["GET", "/api/history"],
+  ["GET", "/api/history/00000000-0000-0000-0000-000000000000"],
   ["DELETE", "/api/history/00000000-0000-0000-0000-000000000000"],
   ["GET", "/api/coach/messages"],
   ["DELETE", "/api/coach/messages"],

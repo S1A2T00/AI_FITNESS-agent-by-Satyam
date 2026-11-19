@@ -2,9 +2,16 @@ import type { AnalysisType, AnalysisResult, ChatMessage } from "../types";
 import { getIdToken } from "./firebase";
 import { apiUrl } from "./apiBase";
 
+/** An error the API answered with (status set), as opposed to a dropped connection. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
 export async function apiFetch<T>(
   endpoint: string,
-  init: { method?: "GET" | "POST" | "DELETE"; body?: unknown } = {}
+  init: { method?: "GET" | "POST" | "DELETE"; body?: unknown; timeoutMs?: number } = {}
 ): Promise<T> {
   const send = async (forceRefresh: boolean) => {
     const token = await getIdToken(forceRefresh);
@@ -15,6 +22,7 @@ export async function apiFetch<T>(
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      signal: init.timeoutMs ? AbortSignal.timeout(init.timeoutMs) : undefined,
     });
   };
 
@@ -27,25 +35,59 @@ export async function apiFetch<T>(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data?.error || `Request failed: ${response.status}`);
+    throw new ApiError(data?.error || `Request failed: ${response.status}`, response.status);
   }
 
   return data as T;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const withDate = (a: AnalysisResult): AnalysisResult => ({ ...a, timestamp: new Date(a.timestamp) });
+
+// How long to wait on the upload connection, and how long to keep looking
+// for the saved result afterwards. The server gives Gemini at most 100 s.
+const ANALYZE_WAIT_MS = 75_000;
+const RECOVER_FOR_MS = 120_000;
+const RECOVER_EVERY_MS = 4_000;
+
+/**
+ * Runs an analysis. If the connection stalls or drops (mobile networks,
+ * proxies), the server usually still finishes and saves the result, so we
+ * look it up by the id we chose instead of spinning forever.
+ */
 export async function performAnalysis(
   type: AnalysisType,
   images?: string | string[],
   text?: string
 ): Promise<AnalysisResult> {
-  const result = await apiFetch<AnalysisResult>("/api/analyze", {
-    body: { type, images, text },
-  });
+  const requestId = crypto.randomUUID();
 
-  return {
-    ...result,
-    timestamp: new Date(result.timestamp),
-  };
+  try {
+    const result = await apiFetch<AnalysisResult>("/api/analyze", {
+      body: { type, images, text, requestId },
+      timeoutMs: ANALYZE_WAIT_MS,
+    });
+    return withDate(result);
+  } catch (err) {
+    // The server answered with an error: nothing was saved, show it.
+    // (504 comes from a proxy timing out while the server may still finish.)
+    if (err instanceof ApiError && err.status !== 504) throw err;
+  }
+
+  const deadline = Date.now() + RECOVER_FOR_MS;
+  while (Date.now() < deadline) {
+    try {
+      return withDate(await apiFetch<AnalysisResult>(`/api/history/${requestId}`, { timeoutMs: 15_000 }));
+    } catch (err) {
+      // 404 = not saved yet; network errors = try again shortly.
+      if (err instanceof ApiError && err.status !== 404) throw err;
+    }
+    await sleep(RECOVER_EVERY_MS);
+  }
+
+  throw new Error(
+    "The analysis is taking too long. If it finishes, it will appear in History. Please try again."
+  );
 }
 
 // The server builds the health context and conversation history from the

@@ -183,6 +183,14 @@ export async function insertAnalysis(uid, a) {
   return toAnalysis(rows[0]);
 }
 
+export async function getAnalysis(uid, id) {
+  const { rows } = await pool.query(
+    "SELECT * FROM analyses WHERE user_uid = $1 AND id = $2",
+    [uid, id]
+  );
+  return rows[0] ? toAnalysis(rows[0]) : null;
+}
+
 export async function listAnalyses(uid, limit = 500) {
   const { rows } = await pool.query(
     "SELECT * FROM analyses WHERE user_uid = $1 ORDER BY created_at DESC LIMIT $2",

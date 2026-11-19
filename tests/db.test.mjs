@@ -74,6 +74,15 @@ test("posture findings are stored in details and returned", { skip }, async () =
   await db.deleteAnalysis(alice, other.id);
 });
 
+test("a saved analysis can be fetched by id, only by its owner", { skip }, async () => {
+  const id = randomUUID();
+  assert.equal(await db.getAnalysis(alice, id), null, "not saved yet");
+  await db.insertAnalysis(alice, { id, type: "MEDICINE", summary: "found it" });
+  assert.equal((await db.getAnalysis(alice, id)).summary, "found it");
+  assert.equal(await db.getAnalysis(bob, id), null, "other users can't read it");
+  await db.deleteAnalysis(alice, id);
+});
+
 test("coach messages keep order, limit to newest, and clear", { skip }, async () => {
   await db.insertCoachExchange(alice, "q1", "a1");
   await db.insertCoachExchange(alice, "q2", "a2");
