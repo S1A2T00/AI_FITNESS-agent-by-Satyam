@@ -9,7 +9,7 @@ AI health & fitness assistant: React + Node, Firebase login, PostgreSQL, Gemini.
 | **App** | https://vitalis-psi-lac.vercel.app |
 | API | https://vitalis-api-i3k9.onrender.com |
 | API health | https://vitalis-api-i3k9.onrender.com/api/health |
-
+|** APP EC2 Live** |https://vitalis-agent.duckdns.org/#/login |
 Frontend on Vercel, API on Render, database on Neon. The API sleeps when idle on
 Render's free plan, so the first request can take about a minute.
 
@@ -93,4 +93,3 @@ npm run dev:api            # API on :3001
 npm run dev                # frontend on :3000
 npm run check              # lint + typecheck + tests
 ```
-https://vitalis-agent.duckdns.org/#/login
