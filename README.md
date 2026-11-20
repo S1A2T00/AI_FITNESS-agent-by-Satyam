@@ -93,3 +93,4 @@ npm run dev:api            # API on :3001
 npm run dev                # frontend on :3000
 npm run check              # lint + typecheck + tests
 ```
+https://vitalis-agent.duckdns.org/#/login
